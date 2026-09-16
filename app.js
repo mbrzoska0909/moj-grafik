@@ -11,8 +11,13 @@ function splitRow(text){let s=text.trim();if(!s)return[];return s.split(/[;,\n]+
 function render(entries){let good=0,bad=0;const month=document.querySelector('#month').value;let m=month?Number(month.split('-')[1]):8;document.querySelector('#schedule').innerHTML=entries.map((x,i)=>{let p=parse(x);p.valid?good++:bad++;let time=p.allDay?'cały dzień':p.start?`${p.start}–${p.end}${p.overnight?' (+1 dzień)':''}`:p.label;return `<div class='day'><span>${i+1}.${String(m).padStart(2,'0')}</span><input class='dayEdit' data-day='${i}' value='${p.raw==='—'?'':p.raw}' placeholder='wolne'><span>${time}</span><span class='${p.valid?'ok':'warn'}'>${p.valid?'✓':'!'}</span></div>`}).join('');document.querySelector('#summary').innerHTML=`<div class='result'><b>${entries.length} dni</b> • poprawne: ${good} • do sprawdzenia: ${bad}</div>`;document.querySelector('#scheduleTitle').textContent=`${document.querySelector('#employee').value||'Pracownik'} • ${monthLabel(month)}`;document.querySelectorAll('.dayEdit').forEach(el=>el.addEventListener('change',()=>{entries[+el.dataset.day]=el.value;render(entries)}));localStorage.setItem('lastSchedule',JSON.stringify({employee:document.querySelector('#employee').value,month,entries}));}
 document.querySelector('#loadSample').onclick=()=>{document.querySelector('#rowInput').value=sample.map(x=>x||'-').join(', ');document.querySelector('#month').value='2026-08';document.querySelector('#employee').value='BRZÓSKA';render([...sample])};
 document.querySelector('#analyzeRow').onclick=()=>{let entries=splitRow(document.querySelector('#rowInput').value), expected=daysInMonth(document.querySelector('#month').value),err=document.querySelector('#rowError');if(entries.length!==expected){err.innerHTML=`<div class='result warn'><b>Sprawdź liczbę dni:</b> odczytano ${entries.length}, a miesiąc ma ${expected}. Popraw wpisy przed zatwierdzeniem.</div>`;}else err.innerHTML='';render(entries)};
-document.querySelector('#parseBtn').onclick=()=>{let p=parse(document.querySelector('#entry').value);document.querySelector('#parseResult').innerHTML=`<div class='result'><b>${p.raw}</b><br>${p.label}<br>${p.allDay?'Cały dzień':p.start?`${p.start}–${p.end}${p.overnight?' (koniec następnego dnia)':''}`:'⚠ '+p.label}</div>`};
+const legacyParseBtn=document.querySelector('#parseBtn');
+if(legacyParseBtn) legacyParseBtn.onclick=()=>{const entry=document.querySelector('#entry'),out=document.querySelector('#parseResult');if(!entry||!out)return;let p=parse(entry.value);out.innerHTML=`<div class='result'><b>${p.raw}</b><br>${p.label}</div>`};
 
+
+
+function monthName(m){return ['','styczeń','luty','marzec','kwiecień','maj','czerwiec','lipiec','sierpień','wrzesień','październik','listopad','grudzień'][m]||''}
+function parseEntry(raw){const p=parse(raw);return {raw:p.raw==='—'?'':p.raw,ok:!!p.valid,time:p.allDay?'cały dzień':p.start?`${p.start}–${p.end}${p.overnight?' (+1 dzień)':''}`:(p.label||''),error:p.label||'Nieznany wpis'}}
 
 let selectedPhoto=null, imageBitmap=null;
 const $=s=>document.querySelector(s);
@@ -144,10 +149,15 @@ async function runOCR(){
 }
 $('#ocrBtn').onclick=runOCR;
 
-let keys=Object.keys(rules);
-$('#analyzeRow').onclick=()=>{let n=daysInMonth($('#month').value),a=$('#rowInput').value.split(/[,;\n]+/).map(x=>x.trim());if(a.length!==n){$('#rowError').innerHTML=`<div class="result warn">Miesiąc ma ${n} dni, a podano ${a.length} wpisów.</div>`;return}renderEntries(a)};
-$('#loadSample').onclick=()=>{let a=['UW','UW','UW','3','3','3/I','-','1','3','3','3','-','-','-','2','2/VI','2/IX','3','3','3','-','-','-','1','2/VIII','3','-','-','1','1','2/S16'];$('#month').value='2026-08';$('#rowInput').value=a.join(', ');renderEntries(a)};
-function buildRules(){let h='<table><tr><th>Kod</th><th>1 zm.</th><th>2 zm.</th><th>3 zm.</th></tr>';for(let k of keys){let r=rules[k];h+=`<tr><td>${k}</td><td>${r[1]?fmt(r[1]):'brak'}</td><td>${r[2]?fmt(r[2]):'brak'}</td><td>${r[3]?fmt(r[3]):'brak'}</td></tr>`}$('#rules').innerHTML=h+'</table>'}buildRules();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 
+function buildRules(){
+ let h='<table><tr><th>Kod</th><th>1 zm.</th><th>2 zm.</th><th>3 zm.</th></tr>';
+ for(const k of Object.keys(variants)){
+   const r=variants[k], cell=(a,b)=>a&&b?`${a}–${b}`:'brak';
+   h+=`<tr><td>${k}</td><td>${cell(r[0],r[1])}</td><td>${cell(r[2],r[3])}</td><td>${cell(r[4],r[5])}</td></tr>`;
+ }
+ $('#rules').innerHTML=h+'</table>';
+}
+buildRules();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 setTimeout(()=>{const d=document.querySelector('#appDiag');if(d)d.textContent='Moduł zdjęć: gotowy ✓';},0);

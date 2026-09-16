@@ -1,11 +1,15 @@
-# Mój Grafik PWA v0.6.2
+# Mój Grafik PWA v0.6.3
 
-Naprawa wyboru zdjęć na iPhone:
-- natywny input pliku przykrywa cały przycisk (bez pośredniego kliknięcia label),
-- obsługa zarówno `input`, jak i `change`,
-- `createImageBitmap` + fallback do blob URL,
-- status pojawia się natychmiast po faktycznym przekazaniu pliku,
-- diagnostyka „Moduł zdjęć: gotowy ✓” potwierdza załadowanie nowego JavaScript,
-- tymczasowo wyłączone agresywne cache PWA, żeby GitHub Pages nie podawał starej wersji.
+Wersja naprawcza.
 
-Jeśli po wybraniu zdjęcia nie pojawi się nawet komunikat „Plik został wybrany”, problem jest przed handlerem JS (picker/PWA/cache), co będzie od razu widoczne diagnostycznie.
+Znaleziony konkretny błąd:
+v0.6–v0.6.2 zawierały pozostałość po starszym ekranie (`#parseBtn`). Tego elementu nie ma już w aktualnym HTML, więc JavaScript zatrzymywał się natychmiast przy starcie. Z tego powodu nie działał wybór zdjęcia, przełączanie trybu ani napis „Moduł zdjęć: gotowy”.
+
+v0.6.3:
+- usuwa błąd startowy,
+- zabezpiecza starszy handler,
+- naprawia brakujące funkcje używane przez ekran kontroli,
+- naprawia tabelę reguł,
+- zachowuje dwa tryby grafiku,
+- zachowuje poprawioną obsługę zdjęć iPhone,
+- pokazuje „Moduł zdjęć: gotowy ✓”, jeśli cały JS wystartował.
