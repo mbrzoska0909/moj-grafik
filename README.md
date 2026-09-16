@@ -1,13 +1,16 @@
-# Mój Grafik PWA v0.4
+# Mój Grafik PWA v0.6
 
-Eksperymentalna wersja odczytu konkretnego wiersza pracownika ze zdjęcia grafiku.
+Dwa tryby importu:
+1. Grafik zbiorczy — zachowuje oznaczenia I–XV i S16–S26. Użytkownik zaznacza tylko własny wiersz dwoma suwakami; aplikacja analizuje ten pas i nagłówek dni.
+2. Harmonogram pracownika — odczyt godzin z indywidualnego harmonogramu.
 
 Nowości:
-- OCR z pozycjami wyrazów,
-- wyszukiwanie nazwiska pracownika,
-- próba odtworzenia siatki dni 1–31,
-- przypisanie kodów tylko z poziomego wiersza pracownika,
-- automatyczne utworzenie miesiąca i ręczna korekta,
-- reguły zmian schowane w rozwijanej sekcji.
+- ekran wyboru formatu,
+- lokalny podgląd/maska prywatności,
+- ręczny wybór własnego wiersza,
+- eksperymentalne automatyczne wyszukiwanie nazwiska,
+- OCR konkretnego pasa grafiku zbiorczego,
+- brak zgadywania oznaczeń, których nie ma w harmonogramie indywidualnym,
+- kontrola przed przyszłym eksportem do Google Calendar.
 
-Uwaga: to nadal prototyp OCR. Po analizie zawsze sprawdź ekran „Kontrola miesiąca” przed przyszłą synchronizacją z kalendarzem.
+Uwaga: prototyp OCR. Zawsze sprawdź wynik.

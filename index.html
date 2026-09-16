@@ -1,7 +1,63 @@
-<!doctype html><html lang='pl'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><meta name='theme-color' content='#111827'><link rel='manifest' href='manifest.webmanifest'><link rel='stylesheet' href='style.css'><title>Mój Grafik</title></head><body><main class='app'><header><div><small>PROTOTYP PWA • v0.4</small><h1>Mój Grafik</h1><p>Zdjęcie → wiersz pracownika → kontrola → kalendarz</p></div><button id='install' hidden>Zainstaluj</button></header>
-<section class='card'><h2>1. Dodaj grafik</h2><div class='photo-actions'><label class='upload'>📷 Zrób zdjęcie<input id='cameraPhoto' type='file' accept='image/*' capture='environment'></label><label class='upload'>🖼️ Wybierz zapisane zdjęcie<input id='libraryPhoto' type='file' accept='image/*'></label></div><img id='preview' hidden alt='Podgląd grafiku'><p id='photoInfo' class='hint'>Wybierz zdjęcie grafiku. v0.4 próbuje znaleźć nazwisko i odczytać tylko jego poziomy wiersz.</p><div class='photo-actions'><button id='ocrBtn' disabled>🎯 Odczytaj mój wiersz</button></div><div id='ocrStatus'></div><details><summary>Diagnostyka OCR</summary><pre id='ocrRaw' class='ocrRaw'></pre></details></section>
-<section class='card'><h2>2. Pracownik i miesiąc</h2><label>Pracownik<input id='employee' value='BRZÓSKA' placeholder='np. BRZÓSKA'></label><label>Miesiąc<input id='month' type='month' value='2026-08'></label><label>Wpisy z kolejnych dni<textarea id='rowInput' rows='5' placeholder='Tu pojawi się automatyczny odczyt'></textarea></label><p class='hint'>Po OCR możesz poprawić wynik ręcznie. Puste / „-” = wolne.</p><div class='photo-actions'><button id='loadSample'>Wstaw próbkę BRZÓSKA</button><button id='analyzeRow'>Utwórz miesiąc</button></div><div id='rowError'></div></section>
-<section class='card'><div class='row'><div><h2>3. Kontrola miesiąca</h2><p id='scheduleTitle'>Jeszcze nie utworzono grafiku</p></div></div><div id='summary'></div><div id='schedule'></div></section>
-<section class='card'><h2>4. Sprawdź pojedynczy wpis</h2><div class='parse'><input id='entry' placeholder='np. 2/IX, 1/XV, 2/S20, UW'><button id='parseBtn'>Rozpoznaj</button></div><div id='parseResult'></div></section>
-<details class='card'><summary><b>5. Reguły zmian</b></summary><div id='rules'></div></details>
-</main><script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script><script src='app.js?v=04'></script></body></html>
+<!doctype html>
+<html lang="pl"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css"><title>Mój Grafik</title></head>
+<body><main class="app">
+<header><div><small>PROTOTYP PWA • v0.6</small><h1>Mój Grafik</h1>
+<p>Dwa formaty grafiku • lokalne przygotowanie obrazu • kontrola</p></div></header>
+
+<section class="card">
+<h2>1. Typ grafiku</h2>
+<div class="mode">
+<label><input type="radio" name="mode" value="collective" checked> <b>Grafik zbiorczy</b><small>z oznaczeniami I–XV, S16–S26</small></label>
+<label><input type="radio" name="mode" value="individual"> <b>Harmonogram pracownika</b><small>indywidualny, z godzinami</small></label>
+</div>
+</section>
+
+<section class="card">
+<h2>2. Dodaj zdjęcie</h2>
+<div class="photo-actions">
+<label class="upload">📷 Zrób zdjęcie<input id="cameraPhoto" type="file" accept="image/*" capture="environment"></label>
+<label class="upload">🖼️ Wybierz zapisane zdjęcie<input id="libraryPhoto" type="file" accept="image/*"></label>
+</div>
+<img id="preview" hidden alt="Podgląd grafiku">
+<p id="photoInfo" class="hint">Zdjęcie jest przygotowywane lokalnie na urządzeniu.</p>
+</section>
+
+<section class="card" id="privacyCard">
+<h2>3. Prywatność / wybór własnego wiersza</h2>
+<p class="hint">Dla grafiku zbiorczego ustaw dwa suwaki tak, aby zielony pas obejmował <b>tylko Twój wiersz</b>. Nagłówek z dniami pozostawiamy do analizy. Oryginalne zdjęcie nie jest zmieniane.</p>
+<div id="cropWrap" class="cropWrap" hidden>
+<canvas id="cropCanvas"></canvas>
+<div class="sliderBlock"><label>Górna krawędź mojego wiersza <b id="topVal"></b></label><input id="topRange" type="range" min="0" max="100" value="38"></div>
+<div class="sliderBlock"><label>Dolna krawędź mojego wiersza <b id="bottomVal"></b></label><input id="bottomRange" type="range" min="0" max="100" value="55"></div>
+<button id="autoRow">✨ Spróbuj znaleźć BRZÓSKĘ</button>
+</div>
+</section>
+
+<section class="card">
+<h2>4. Odczyt</h2>
+<div class="grid2"><label>Pracownik<input id="employee" value="BRZÓSKA"></label>
+<label>Miesiąc<input id="month" type="month" value="2026-08"></label></div>
+<button id="ocrBtn" disabled>🔎 Odczytaj grafik</button>
+<div id="ocrStatus"></div>
+<details><summary>Diagnostyka OCR</summary><pre id="ocrRaw" class="ocrRaw"></pre></details>
+</section>
+
+<section class="card">
+<h2>5. Kontrola miesiąca</h2>
+<p id="scheduleTitle">Jeszcze nie odczytano grafiku</p>
+<div id="summary"></div><div id="schedule"></div>
+</section>
+
+<details class="card"><summary><b>6. Tryb ręczny / awaryjny</b></summary>
+<label>Wpisy z kolejnych dni<textarea id="rowInput" rows="5"></textarea></label>
+<div class="photo-actions"><button id="loadSample">Próbka BRZÓSKA</button><button id="analyzeRow">Utwórz miesiąc</button></div>
+<div id="rowError"></div>
+</details>
+
+<details class="card"><summary><b>7. Reguły zmian</b></summary><div id="rules"></div></details>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="app.js?v=06"></script></body></html>
