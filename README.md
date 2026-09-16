@@ -1,14 +1,13 @@
-# Mój Grafik PWA v0.2
+# Mój Grafik — PWA v0.3
 
-Prototyp PWA do interpretowania grafiku zmianowego.
+Wersja testowa z OCR wykonywanym bezpośrednio w przeglądarce przez Tesseract.js.
 
-Nowości v0.2:
-- zdjęcie z aparatu lub biblioteki,
-- pole pracownika i miesiąca,
-- wprowadzanie całego wiersza grafiku,
-- kontrola liczby dni,
-- edycja każdej komórki,
-- walidacja zmian i wariantów,
-- zapis ostatniego grafiku lokalnie w przeglądarce.
+## Nowości
+- aparat lub zapisane zdjęcie,
+- przycisk „Rozpoznaj zdjęcie”,
+- OCR na urządzeniu (bez wysyłania zdjęcia do własnego backendu),
+- wyciąganie kodów 1/2/3, I–XV, S16–S26, BHP, BO i UW,
+- podgląd surowego tekstu OCR,
+- dalsza ręczna korekta i walidacja miesiąca.
 
-Automatyczny OCR zdjęcia będzie następnym etapem i wymaga usługi po stronie serwera/API; v0.2 nie udaje, że OCR działa lokalnie.
+Uwaga: v0.3 to etap eksperymentalny. Pełny arkusz z wieloma pracownikami może wymagać kadrowania/wyboru wiersza; kolejny etap to automatyczne wykrywanie tabeli i wiersza pracownika.

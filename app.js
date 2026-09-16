@@ -12,7 +12,29 @@ function render(entries){let good=0,bad=0;const month=document.querySelector('#m
 document.querySelector('#loadSample').onclick=()=>{document.querySelector('#rowInput').value=sample.map(x=>x||'-').join(', ');document.querySelector('#month').value='2026-08';document.querySelector('#employee').value='BRZÓSKA';render([...sample])};
 document.querySelector('#analyzeRow').onclick=()=>{let entries=splitRow(document.querySelector('#rowInput').value), expected=daysInMonth(document.querySelector('#month').value),err=document.querySelector('#rowError');if(entries.length!==expected){err.innerHTML=`<div class='result warn'><b>Sprawdź liczbę dni:</b> odczytano ${entries.length}, a miesiąc ma ${expected}. Popraw wpisy przed zatwierdzeniem.</div>`;}else err.innerHTML='';render(entries)};
 document.querySelector('#parseBtn').onclick=()=>{let p=parse(document.querySelector('#entry').value);document.querySelector('#parseResult').innerHTML=`<div class='result'><b>${p.raw}</b><br>${p.label}<br>${p.allDay?'Cały dzień':p.start?`${p.start}–${p.end}${p.overnight?' (koniec następnego dnia)':''}`:'⚠ '+p.label}</div>`};
-function showPhoto(e){let f=e.target.files[0];if(!f)return;let img=document.querySelector('#preview');if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);let url=URL.createObjectURL(f);img.dataset.url=url;img.src=url;img.hidden=false;document.querySelector('#photoInfo').textContent=`Wybrano: ${f.name||'zdjęcie'} • ${(f.size/1024/1024).toFixed(1)} MB • następny etap: automatyczny OCR`;}document.querySelector('#cameraPhoto').onchange=showPhoto;document.querySelector('#libraryPhoto').onchange=showPhoto;
+let selectedPhoto=null;
+function showPhoto(e){let f=e.target.files[0];if(!f)return;selectedPhoto=f;let img=document.querySelector('#preview');if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);let url=URL.createObjectURL(f);img.dataset.url=url;img.src=url;img.hidden=false;document.querySelector('#photoInfo').textContent=`Wybrano: ${f.name||'zdjęcie'} • ${(f.size/1024/1024).toFixed(1)} MB`;document.querySelector('#ocrBtn').disabled=false;document.querySelector('#ocrStatus').innerHTML='';}
+document.querySelector('#cameraPhoto').onchange=showPhoto;document.querySelector('#libraryPhoto').onchange=showPhoto;
+function ocrTokens(text){
+  let clean=text.toUpperCase().replace(/\\/g,'/').replace(/[|]/g,'/').replace(/\bU[WV]\b/g,'UW');
+  const re=/(?:BHP|BO|UW|[123](?:\/(?:S-?\s*(?:1[6-9]|2[0-6])|X(?:II|III|IV|V|I)?|IX|VIII|VII|VI|IV|III|II|I|V))?)/g;
+  return (clean.match(re)||[]).map(x=>x.replace(/\s/g,'').replace('S-','S'));
+}
+async function runOCR(){
+  if(!selectedPhoto)return;
+  const btn=document.querySelector('#ocrBtn'), status=document.querySelector('#ocrStatus');btn.disabled=true;
+  status.innerHTML=`<div class='result'><b>Rozpoznawanie…</b><div class='progress'><i id='ocrBar'></i></div><span id='ocrPct'>0%</span></div>`;
+  try{
+    const result=await Tesseract.recognize(selectedPhoto,'pol+eng',{logger:m=>{if(m.status==='recognizing text'){let pct=Math.round((m.progress||0)*100);let b=document.querySelector('#ocrBar'),t=document.querySelector('#ocrPct');if(b)b.style.width=pct+'%';if(t)t.textContent=pct+'%';}}});
+    const text=result.data.text||'';document.querySelector('#ocrRaw').textContent=text;
+    let tokens=ocrTokens(text), expected=daysInMonth(document.querySelector('#month').value);
+    document.querySelector('#rowInput').value=tokens.join(', ');
+    status.innerHTML=`<div class='result'><b>OCR zakończony.</b> Znaleziono ${tokens.length} wpisów przypominających zmiany. ${tokens.length===expected?'Liczba pasuje do miesiąca.':'To nie jest jeszcze pewny odczyt całego wiersza — sprawdź wynik poniżej.'}</div>`;
+    if(tokens.length===expected)render(tokens);
+  }catch(err){status.innerHTML=`<div class='result warn'><b>OCR nie powiódł się.</b> ${String(err.message||err)}</div>`}
+  finally{btn.disabled=false}
+}
+document.querySelector('#ocrBtn').onclick=runOCR;
 let keys=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','S16',...Array.from({length:10},(_,i)=>'S'+(17+i))];document.querySelector('#rules').innerHTML=`<div class='rule head'><span>Kod</span><span>1 zm.</span><span>2 zm.</span><span>3 zm.</span></div>`+keys.map(k=>{let r=variants[k];let t=(a,b)=>a?`${a}–${b}`:'brak';return `<div class='rule'><b>${k}</b><span>${t(r[0],r[1])}</span><span>${t(r[2],r[3])}</span><span>${t(r[4],r[5])}</span></div>`}).join('');
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');let deferred;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;document.querySelector('#install').hidden=false});document.querySelector('#install').onclick=async()=>{if(deferred){deferred.prompt();deferred=null}};
 let saved=localStorage.getItem('lastSchedule');if(saved){try{let s=JSON.parse(saved);document.querySelector('#employee').value=s.employee||'';document.querySelector('#month').value=s.month||'2026-08';document.querySelector('#rowInput').value=(s.entries||[]).map(x=>x||'-').join(', ');render(s.entries||[])}catch(e){}}
