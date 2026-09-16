@@ -1,15 +1,12 @@
-# Mój Grafik PWA v0.6.3
+# Mój Grafik PWA v0.7
 
-Wersja naprawcza.
+Przebudowany OCR grafiku zbiorczego:
+- najpierw wykrywa geometrię nagłówka dni,
+- wskazany wiersz dzieli na osobne komórki 1–31,
+- każdą komórkę powiększa 5×, konwertuje do skali szarości i zwiększa kontrast,
+- OCR działa osobno dla każdego dnia,
+- nierozpoznany wpis = `?`, nigdy automatycznie „wolne”,
+- ekran kontroli pokazuje miniaturę oryginalnej komórki obok wyniku,
+- zachowane działające wczytywanie zdjęć z v0.6.3.
 
-Znaleziony konkretny błąd:
-v0.6–v0.6.2 zawierały pozostałość po starszym ekranie (`#parseBtn`). Tego elementu nie ma już w aktualnym HTML, więc JavaScript zatrzymywał się natychmiast przy starcie. Z tego powodu nie działał wybór zdjęcia, przełączanie trybu ani napis „Moduł zdjęć: gotowy”.
-
-v0.6.3:
-- usuwa błąd startowy,
-- zabezpiecza starszy handler,
-- naprawia brakujące funkcje używane przez ekran kontroli,
-- naprawia tabelę reguł,
-- zachowuje dwa tryby grafiku,
-- zachowuje poprawioną obsługę zdjęć iPhone,
-- pokazuje „Moduł zdjęć: gotowy ✓”, jeśli cały JS wystartował.
+To nadal prototyp: przed eksportem wynik musi być skontrolowany.

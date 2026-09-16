@@ -19,145 +19,117 @@ if(legacyParseBtn) legacyParseBtn.onclick=()=>{const entry=document.querySelecto
 function monthName(m){return ['','styczeń','luty','marzec','kwiecień','maj','czerwiec','lipiec','sierpień','wrzesień','październik','listopad','grudzień'][m]||''}
 function parseEntry(raw){const p=parse(raw);return {raw:p.raw==='—'?'':p.raw,ok:!!p.valid,time:p.allDay?'cały dzień':p.start?`${p.start}–${p.end}${p.overnight?' (+1 dzień)':''}`:(p.label||''),error:p.label||'Nieznany wpis'}}
 
-let selectedPhoto=null, imageBitmap=null;
+
+let selectedPhoto=null, imageEl=null, lastCells=[];
 const $=s=>document.querySelector(s);
 const mode=()=>document.querySelector('input[name="mode"]:checked').value;
+function monthName(m){return ['','styczeń','luty','marzec','kwiecień','maj','czerwiec','lipiec','sierpień','wrzesień','październik','listopad','grudzień'][m]||''}
+function parseEntry(raw){const p=parse(raw);return {raw:p.raw==='—'?'':p.raw,ok:!!p.valid,time:p.allDay?'cały dzień':p.start?`${p.start}–${p.end}${p.overnight?' (+1 dzień)':''}`:(p.label||''),error:p.label||'Nieznany wpis'}}
 
-let photoBusy=false;
-async function handleChosenFile(input){
- if(photoBusy)return;
- const f=input.files && input.files[0];
- if(!f){return}
- photoBusy=true; selectedPhoto=f;
- const img=$('#preview');
- $('#photoInfo').textContent=`Wczytuję zdjęcie (${(f.size/1024/1024).toFixed(1)} MB)…`;
- $('#ocrStatus').innerHTML=`<div class="result">📷 Plik został wybrany. Przygotowuję podgląd…</div>`;
- $('#ocrBtn').disabled=true; $('#cropWrap').hidden=true;
- try{
-   let loaded=false;
-   // First choice for modern iOS Safari.
-   if('createImageBitmap' in window){
-     try{
-       const bmp=await createImageBitmap(f);
-       const c=document.createElement('canvas');
-       c.width=bmp.width;c.height=bmp.height;
-       c.getContext('2d').drawImage(bmp,0,0);
-       img.src=c.toDataURL('image/jpeg',0.92);
-       if(bmp.close)bmp.close();
-       loaded=true;
-     }catch(_){}
-   }
-   // Fallback: object URL. Keep it alive; revoking early can break iOS PWA.
-   if(!loaded){
-     const u=URL.createObjectURL(f);
-     img.src=u; img.dataset.url=u;
-   }
-   await new Promise((resolve,reject)=>{
-     if(img.complete && img.naturalWidth){resolve();return}
-     const timer=setTimeout(()=>reject(new Error('Przekroczono czas dekodowania obrazu.')),12000);
-     img.onload=()=>{clearTimeout(timer);resolve()};
-     img.onerror=()=>{clearTimeout(timer);reject(new Error('Safari nie może wyświetlić tego obrazu.'))};
-   });
-   img.hidden=false; imageBitmap=img; $('#cropWrap').hidden=false; drawMask();
-   $('#photoInfo').textContent=`Gotowe • ${(f.size/1024/1024).toFixed(1)} MB • ${img.naturalWidth}×${img.naturalHeight}`;
-   $('#ocrStatus').innerHTML=`<div class="result"><b>✓ Zdjęcie wczytane.</b> Ustaw swój wiersz i naciśnij „Odczytaj grafik”.</div>`;
-   $('#ocrBtn').disabled=false;
- }catch(err){
-   $('#photoInfo').textContent='Nie udało się przygotować podglądu.';
-   $('#ocrStatus').innerHTML=`<div class="result warn"><b>Błąd obrazu:</b> ${err.message||err}</div>`;
- }finally{
-   photoBusy=false;
+async function loadPhoto(input){
+ const f=input.files?.[0]; if(!f)return;
+ selectedPhoto=f; $('#photoInfo').textContent='Wczytuję zdjęcie…'; $('#ocrBtn').disabled=true;
+ const img=$('#preview'), u=URL.createObjectURL(f);
+ await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=u;img.hidden=false});
+ imageEl=img; $('#photoInfo').textContent=`Gotowe • ${(f.size/1048576).toFixed(1)} MB • ${img.naturalWidth}×${img.naturalHeight}`;
+ $('#ocrBtn').disabled=false; $('#cropWrap').hidden=mode()!=='collective'; drawRowPreview();
+ input.value='';
+}
+['#cameraPhoto','#libraryPhoto'].forEach(id=>$(id).addEventListener('change',e=>loadPhoto(e.currentTarget).catch(err=>$('#photoInfo').textContent='Błąd obrazu: '+err)));
+
+function ranges(){
+ let t=+$('#topRange').value,b=+$('#bottomRange').value;
+ if(b<=t+2){b=t+3;$('#bottomRange').value=b}
+ $('#topVal').textContent=t+'%';$('#bottomVal').textContent=b+'%'; return [t/100,b/100];
+}
+function drawRowPreview(){
+ if(!imageEl)return; const c=$('#cropCanvas'),ctx=c.getContext('2d'),scale=Math.min(1,1200/imageEl.naturalWidth);
+ c.width=Math.round(imageEl.naturalWidth*scale);c.height=Math.round(imageEl.naturalHeight*scale);ctx.drawImage(imageEl,0,0,c.width,c.height);
+ if(mode()==='collective'){let[t,b]=ranges(),y1=t*c.height,y2=b*c.height;ctx.fillStyle='rgba(255,255,255,.72)';ctx.fillRect(0,0,c.width,y1);ctx.fillRect(0,y2,c.width,c.height-y2);ctx.strokeStyle='#16a34a';ctx.lineWidth=4;ctx.strokeRect(2,y1,c.width-4,y2-y1)}
+}
+$('#topRange').oninput=drawRowPreview;$('#bottomRange').oninput=drawRowPreview;
+document.querySelectorAll('input[name="mode"]').forEach(r=>r.onchange=()=>{let col=mode()==='collective';$('#privacyCard').style.display=col?'block':'none';$('#cropWrap').hidden=!col||!imageEl;drawRowPreview()});
+
+function norm(s){return (s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[|\\]/g,'/').replace(/\s/g,'')}
+function cleanCode(s){
+ s=norm(s).replace(/[.,:;]/g,'').replace(/^U[VW]$/,'UW').replace(/^[Il]$/,'1');
+ if(['1','2','3','UW','BO','BHP'].includes(s))return s;
+ let m=s.match(/^([123])\/(.+)$/);if(!m)return '';
+ let suf=m[2].replace(/1/g,'I').replace(/0/g,'O');
+ const romans=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV'];
+ if(romans.includes(suf))return m[1]+'/'+suf;
+ let sm=suf.match(/^S(?:I|1)?([6-9])$/);if(sm)return m[1]+'/S1'+sm[1];
+ sm=suf.match(/^S2([0-6])$/);if(sm)return m[1]+'/S2'+sm[1];
+ return '';
+}
+function canvasCrop(x0,y0,x1,y1,boost=4){
+ const c=document.createElement('canvas'),w=Math.max(1,x1-x0),h=Math.max(1,y1-y0);c.width=Math.round(w*boost);c.height=Math.round(h*boost);
+ const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.drawImage(imageEl,x0,y0,w,h,0,0,c.width,c.height);
+ // grayscale + strong contrast
+ let im=ctx.getImageData(0,0,c.width,c.height),d=im.data;
+ for(let i=0;i<d.length;i+=4){let g=.299*d[i]+.587*d[i+1]+.114*d[i+2];g=g<185?Math.max(0,(g-80)*1.65):255;d[i]=d[i+1]=d[i+2]=g}
+ ctx.putImageData(im,0,0);return c;
+}
+async function ocrCanvas(c,whitelist){
+ let r=await Tesseract.recognize(c,'eng',{tessedit_char_whitelist:whitelist||'123UWBHPSIVX/0123456789'});
+ return (r.data.text||'').trim();
+}
+async function findHeader(){
+ // OCR only top ~45%; use word geometry to locate row containing most day numbers.
+ let c=canvasCrop(0,0,imageEl.naturalWidth,Math.round(imageEl.naturalHeight*.48),2);
+ let r=await Tesseract.recognize(c,'eng'), words=r.data.words||[];
+ let pts=words.filter(w=>/^(?:[1-9]|[12]\d|3[01])$/.test((w.text||'').trim())).map(w=>({n:+w.text,x:(w.bbox.x0+w.bbox.x1)/4,y:(w.bbox.y0+w.bbox.y1)/4}));
+ let bins=[];for(const p of pts){let b=bins.find(z=>Math.abs(z.y-p.y)<12);if(!b){b={y:p.y,a:[]};bins.push(b)}b.a.push(p)}
+ bins.sort((a,b)=>b.a.length-a.a.length);let a=bins[0]?.a||[];if(a.length<12)throw Error('Nie znalazłem pewnie wiersza z numerami dni.');
+ a.sort((x,y)=>x.n-y.n);let slopes=[];for(let i=1;i<a.length;i++){let dn=a[i].n-a[i-1].n;if(dn>0)slopes.push((a[i].x-a[i-1].x)/dn)}
+ slopes.sort((x,y)=>x-y);let step=slopes[Math.floor(slopes.length/2)];let starts=a.map(p=>p.x-(p.n-1)*step).sort((x,y)=>x-y);return{start:starts[Math.floor(starts.length/2)],step}
+}
+async function collectiveOCR(){
+ let n=daysInMonth($('#month').value),[t,b]=ranges(),y0=Math.round(t*imageEl.naturalHeight),y1=Math.round(b*imageEl.naturalHeight),g=await findHeader();
+ lastCells=[];let out=[];
+ for(let i=0;i<n;i++){
+   let cx=g.start+i*g.step,x0=Math.max(0,Math.round(cx-g.step*.47)),x1=Math.min(imageEl.naturalWidth,Math.round(cx+g.step*.47));
+   let c=canvasCrop(x0,y0,x1,y1,5);lastCells.push(c.toDataURL('image/jpeg',.9));
+   // Empty detection before OCR: count dark pixels.
+   let d=c.getContext('2d').getImageData(0,0,c.width,c.height).data,dark=0;
+   for(let k=0;k<d.length;k+=16)if(d[k]<115)dark++;
+   let ratio=dark/(d.length/16);
+   if(ratio<.006){out.push('wolne');continue}
+   let txt=await ocrCanvas(c),code=cleanCode(txt);out.push(code||'?');
+   $('#ocrPct').textContent=`${i+1}/${n}`;
  }
+ return out;
 }
-function bindPhotoInput(id){
- const el=$(id);
- // Both events are intentional: iOS versions differ in which is most reliable after picker.
- el.addEventListener('change',()=>handleChosenFile(el));
- el.addEventListener('input',()=>handleChosenFile(el));
+function render(a){
+ let [y,m]=$('#month').value.split('-').map(Number),bad=a.filter(x=>x==='?').length;
+ $('#scheduleTitle').textContent=`${$('#employee').value} • ${monthName(m)} ${y}`;
+ $('#summary').innerHTML=`<div class="summary"><b>${a.length} dni</b> • do sprawdzenia: <b>${bad}</b></div>`;
+ $('#schedule').innerHTML=a.map((x,i)=>{
+   let p=x==='wolne'?{ok:true,time:'cały dzień'}:x==='?'?{ok:false,time:'niepewny odczyt'}:parseEntry(x);
+   let pic=lastCells[i]?`<img class="cellshot" src="${lastCells[i]}" alt="komórka ${i+1}">`:'';
+   return `<div class="day ${p.ok?'':'bad'}"><span>${String(i+1).padStart(2,'0')}.${String(m).padStart(2,'0')}</span>${pic}<input value="${x}"><span>${p.time||p.error}</span><b>${p.ok?'✓':'!'}</b></div>`
+ }).join('');
 }
-bindPhotoInput('#cameraPhoto');bindPhotoInput('#libraryPhoto');
-
-function clampRanges(){
- let a=+$ ('#topRange').value,b=+$ ('#bottomRange').value;
- if(b<a+3){b=Math.min(100,a+3);$('#bottomRange').value=b}
- $('#topVal').textContent=a+'%';$('#bottomVal').textContent=b+'%';
- return [a/100,b/100];
-}
-function drawMask(){
- if(!imageBitmap)return; let c=$('#cropCanvas'),ctx=c.getContext('2d'), max=1000;
- let s=Math.min(1,max/imageBitmap.naturalWidth);c.width=Math.round(imageBitmap.naturalWidth*s);c.height=Math.round(imageBitmap.naturalHeight*s);
- ctx.drawImage(imageBitmap,0,0,c.width,c.height);
- if(mode()==='collective'){
-  let [t,b]=clampRanges(), y1=t*c.height,y2=b*c.height;
-  ctx.fillStyle='rgba(255,255,255,.82)';ctx.fillRect(0,Math.min(c.height*.13,y1),c.width,Math.max(0,y1-Math.min(c.height*.13,y1)));
-  ctx.fillRect(0,y2,c.width,c.height-y2);
-  ctx.strokeStyle='#16a34a';ctx.lineWidth=4;ctx.strokeRect(2,y1,c.width-4,y2-y1);
- }
-}
-$('#topRange').oninput=drawMask;$('#bottomRange').oninput=drawMask;
-document.querySelectorAll('input[name="mode"]').forEach(x=>x.onchange=()=>{ $('#privacyCard').style.display=mode()==='collective'?'block':'none'; drawMask();});
-
-function norm(s){return (s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]/g,'')}
-function rows(words){let a=(words||[]).filter(w=>w.text&&w.bbox).map(w=>({...w,cy:(w.bbox.y0+w.bbox.y1)/2,h:w.bbox.y1-w.bbox.y0}));a.sort((x,y)=>x.cy-y.cy);let hs=a.map(x=>x.h).sort((x,y)=>x-y),med=hs[Math.floor(hs.length/2)]||10,R=[];for(const w of a){let r=R.find(q=>Math.abs(q.cy-w.cy)<Math.max(5,med*.7));if(!r){r={cy:w.cy,words:[]};R.push(r)}r.words.push(w);r.cy=r.words.reduce((s,z)=>s+z.cy,0)/r.words.length}return R}
-async function autoFindRow(){
- if(!selectedPhoto)return;$('#ocrStatus').innerHTML='<div class="result">Szukam nazwiska na zdjęciu…</div>';
+async function run(){
+ if(!imageEl)return;$('#ocrBtn').disabled=true;$('#ocrStatus').innerHTML='<div class="result"><b>Analizuję…</b> <span id="ocrPct"></span></div>';
  try{
-  let r=await Tesseract.recognize(selectedPhoto,'pol+eng'), W=r.data.words||[], target=norm($('#employee').value||'BRZÓSKA');
-  let hit=W.find(w=>norm(w.text)===target)||W.find(w=>norm(w.text).includes(target.slice(0,5)));
-  if(!hit)throw Error('Nie znalazłem nazwiska. Ustaw suwaki ręcznie.');
-  let h=r.data.imageSize?.height||imageBitmap.naturalHeight, cy=(hit.bbox.y0+hit.bbox.y1)/2, rh=Math.max(18,(hit.bbox.y1-hit.bbox.y0)*2.2);
-  $('#topRange').value=Math.max(0,Math.round((cy-rh/2)/h*100));$('#bottomRange').value=Math.min(100,Math.round((cy+rh/2)/h*100));drawMask();
-  $('#ocrStatus').innerHTML='<div class="result"><b>Znalazłem nazwisko.</b> Sprawdź zielony pas i w razie potrzeby popraw suwaki.</div>';
- }catch(e){$('#ocrStatus').innerHTML=`<div class="result warn">${e.message}</div>`}
-}
-$('#autoRow').onclick=autoFindRow;
-
-function valid(raw){let x=(raw||'').toUpperCase().replace(/\s/g,'').replace(/[|\\]/g,'/').replace(/^U[VW]$/,'UW');if(['UW','BO','BHP','1','2','3'].includes(x))return x;return /^([123])\/(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|S(?:1[6-9]|2[0-6]))$/.test(x)?x:''}
-function inferGrid(words,n){
- let cand=(words||[]).filter(w=>w.bbox&&/^(?:[1-9]|[12]\d|3[01])$/.test((w.text||'').trim()));
- let R=rows(cand),best=null;for(const r of R){let v=r.words.map(w=>({n:+w.text,x:(w.bbox.x0+w.bbox.x1)/2})).filter(z=>z.n>=1&&z.n<=n);let d=new Set(v.map(z=>z.n)).size;if(!best||d>best.d)best={v,d,y:r.cy}}
- if(!best||best.d<10)return null;best.v.sort((a,b)=>a.n-b.n);let ss=[];for(let i=1;i<best.v.length;i++){let dn=best.v[i].n-best.v[i-1].n,s=(best.v[i].x-best.v[i-1].x)/dn;if(dn>0&&s>2)ss.push(s)}ss.sort((a,b)=>a-b);let step=ss[Math.floor(ss.length/2)];if(!step)return null;let st=best.v.map(v=>v.x-(v.n-1)*step).sort((a,b)=>a-b);return{start:st[Math.floor(st.length/2)],step,y:best.y}
-}
-function collectiveEntries(words,grid,n,ih){
- let [t,b]=clampRanges(), y1=t*ih,y2=b*ih,c=Array.from({length:n},()=>[]);
- for(const w of words||[]){if(!w.bbox)continue;let cy=(w.bbox.y0+w.bbox.y1)/2;if(cy<y1||cy>y2)continue;let cx=(w.bbox.x0+w.bbox.x1)/2,i=Math.round((cx-grid.start)/grid.step);if(i>=0&&i<n)c[i].push(w)}
- return c.map(a=>{a.sort((x,y)=>x.bbox.x0-y.bbox.x0);let s=a.map(w=>w.text).join('').replace(/\s/g,'');let v=valid(s);if(v)return v;for(const w of a){v=valid(w.text);if(v)return v}return '-'})
-}
-function renderEntries(a){
- let [y,m]=$('#month').value.split('-').map(Number),name=$('#employee').value||'Pracownik', rr=a.map((x,i)=>({day:i+1,...parseEntry(x)})),bad=rr.filter(x=>!x.ok).length;
- $('#scheduleTitle').textContent=`${name} • ${monthName(m)} ${y}`;$('#summary').innerHTML=`<div class="summary"><b>${a.length} dni</b> • poprawne: ${a.length-bad} • do sprawdzenia: <b>${bad}</b></div>`;
- $('#schedule').innerHTML=rr.map(r=>`<div class="day ${r.ok?'':'bad'}"><span>${String(r.day).padStart(2,'0')}.${String(m).padStart(2,'0')}</span><input value="${r.raw||'wolne'}"><span>${r.ok?r.time:r.error}</span><b>${r.ok?'✓':'!'}</b></div>`).join('');
-}
-function parseMonth(text){let m=(text||'').match(/(?:miesiąc|miesiac)\D{0,12}(0?[1-9]|1[0-2])\s*[\/.-]\s*(20\d{2})/i);return m?`${m[2]}-${String(+m[1]).padStart(2,'0')}`:null}
-
-async function runOCR(){
- if(!selectedPhoto)return;let btn=$('#ocrBtn');btn.disabled=true;$('#ocrStatus').innerHTML='<div class="result"><b>Analizuję grafik…</b><div class="progress"><i id="ocrBar"></i></div><span id="ocrPct">0%</span></div>';
- try{
-  let r=await Tesseract.recognize(selectedPhoto,'pol+eng',{logger:m=>{if(m.status==='recognizing text'){let p=Math.round(m.progress*100);if($('#ocrBar'))$('#ocrBar').style.width=p+'%';if($('#ocrPct'))$('#ocrPct').textContent=p+'%'}}}),d=r.data||{},text=d.text||'',W=d.words||[];
-  $('#ocrRaw').textContent=text;let mo=parseMonth(text);if(mo)$('#month').value=mo;let n=daysInMonth($('#month').value),grid=inferGrid(W,n);if(!grid)throw Error('Nie udało się pewnie znaleźć nagłówka dni.');
   if(mode()==='collective'){
-    let ih=d.imageSize?.height||imageBitmap.naturalHeight,a=collectiveEntries(W,grid,n,ih);$('#rowInput').value=a.join(', ');renderEntries(a);
-    let known=a.filter(x=>x!=='-').length;$('#ocrStatus').innerHTML=`<div class="result"><b>Tryb zbiorczy:</b> odczytano ${known} wpisów z zaznaczonego wiersza. <b>Sprawdź każdy dzień</b> — puste komórki są traktowane jako wolne.</div>`;
+   let a=await collectiveOCR();render(a);$('#ocrStatus').innerHTML='<div class="result"><b>Gotowe.</b> Każdy dzień został wycięty i przeanalizowany osobno. „?” oznacza, że aplikacja nie zgaduje.</div>';
   }else{
-    // For individual format, use OCR text/time geometry conservatively; flag ambiguity rather than inventing details.
-    let cells=Array.from({length:n},()=>[]);for(const w of W){if(!w.bbox)continue;let cy=(w.bbox.y0+w.bbox.y1)/2;if(cy<=grid.y)continue;let i=Math.round((((w.bbox.x0+w.bbox.x1)/2)-grid.start)/grid.step);if(i>=0&&i<n)cells[i].push((w.text||'').trim())}
-    let a=cells.map(c=>{let s=c.join(' '),ts=[...s.matchAll(/\b(\d{1,2})[:.](\d{2})\b/g)].map(x=>`${x[1].padStart(2,'0')}:${x[2]}`);return ts.length>=2?`${ts[0]}–${ts[1]}`:(/\b0h\b/i.test(s)?'wolne':'?')});
-    let [y,m]=$('#month').value.split('-').map(Number);$('#scheduleTitle').textContent=`${$('#employee').value} • ${monthName(m)} ${y}`;let bad=a.filter(x=>x==='?').length;$('#summary').innerHTML=`<div class="summary"><b>${n} dni</b> • do sprawdzenia: <b>${bad}</b></div>`;$('#schedule').innerHTML=a.map((x,i)=>`<div class="day ${x==='?'?'bad':''}"><span>${String(i+1).padStart(2,'0')}.${String(m).padStart(2,'0')}</span><input value="${x}"><span>${x==='?'?'niepewny odczyt':x==='wolne'?'cały dzień':x}</span><b>${x==='?'?'!':'✓'}</b></div>`).join('');
-    $('#ocrStatus').innerHTML='<div class="result"><b>Tryb indywidualny:</b> odczytano godziny z harmonogramu. Ten format nie zawiera oznaczeń drużyn, więc aplikacja ich nie dopisuje.</div>';
+   // retain simple full-image individual recognition, conservative.
+   let r=await Tesseract.recognize(selectedPhoto,'pol+eng'),text=r.data.text||'';$('#ocrRaw').textContent=text;
+   let mo=text.match(/(?:miesiąc|miesiac)\D{0,12}(0?[1-9]|1[0-2])\s*[\/.-]\s*(20\d{2})/i);if(mo)$('#month').value=`${mo[2]}-${String(+mo[1]).padStart(2,'0')}`;
+   let n=daysInMonth($('#month').value), lines=text.split(/\n/), all=text.match(/\b(?:[01]?\d|2[0-3])[:.]\d{2}\b/g)||[];
+   $('#ocrStatus').innerHTML='<div class="result">Tryb indywidualny pozostaje w wersji testowej. Najważniejsza zmiana v0.7 dotyczy grafiku zbiorczego.</div>';
+   $('#scheduleTitle').textContent=`${$('#employee').value} • ${$('#month').value}`;$('#summary').innerHTML=`<div class="summary">Rozpoznano ${all.length} zapisów godzinowych. Użyj diagnostyki OCR do kontroli.</div>`;
   }
- }catch(e){$('#ocrStatus').innerHTML=`<div class="result warn"><b>OCR nie jest pewny wyniku.</b><br>${e.message}</div>`}finally{btn.disabled=false}
+ }catch(e){$('#ocrStatus').innerHTML=`<div class="result warn"><b>Nie udało się odczytać:</b> ${e.message}</div>`}finally{$('#ocrBtn').disabled=false}
 }
-$('#ocrBtn').onclick=runOCR;
+$('#ocrBtn').onclick=run;
+$('#autoRow').onclick=()=>{$('#ocrStatus').innerHTML='<div class="result">W v0.7 ustaw wiersz ręcznie suwakami — to jest pewniejsze niż automatyczne zgadywanie nazwiska.</div>'};
 
-
-function buildRules(){
- let h='<table><tr><th>Kod</th><th>1 zm.</th><th>2 zm.</th><th>3 zm.</th></tr>';
- for(const k of Object.keys(variants)){
-   const r=variants[k], cell=(a,b)=>a&&b?`${a}–${b}`:'brak';
-   h+=`<tr><td>${k}</td><td>${cell(r[0],r[1])}</td><td>${cell(r[2],r[3])}</td><td>${cell(r[4],r[5])}</td></tr>`;
- }
- $('#rules').innerHTML=h+'</table>';
-}
-buildRules();
+$('#loadSample').onclick=()=>{let a=['UW','UW','UW','3','3','3/I','wolne','1','3','3','3','wolne','wolne','wolne','2','2/VI','2/IX','3','3','3','wolne','wolne','wolne','1','2/VIII','3','wolne','wolne','1','1','2/S16'];$('#month').value='2026-08';render(a)};
+$('#analyzeRow').onclick=()=>{let n=daysInMonth($('#month').value),a=$('#rowInput').value.split(/[,;\n]+/).map(x=>x.trim());if(a.length!==n){$('#rowError').innerHTML=`<div class="result warn">Miesiąc ma ${n} dni, podano ${a.length}.</div>`;return}render(a)};
+$('#rules').innerHTML='<p>I–XI: 1=06–14, 2=14–22, 3=22–06. XII–XIV: bez 3. XV: 1=05–13, 2=13–21. S16: 1=05–13, 2=14–22. S17–S26: 1=05–13, 2=13–21.</p>';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-setTimeout(()=>{const d=document.querySelector('#appDiag');if(d)d.textContent='Moduł zdjęć: gotowy ✓';},0);
+setTimeout(()=>{let d=$('#appDiag');if(d)d.textContent='Moduł zdjęć: gotowy ✓ • OCR komórka po komórce';},0);
