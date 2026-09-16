@@ -1,66 +1,18 @@
-<!doctype html>
-<html lang="pl"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css"><title>Mój Grafik</title></head>
-<body><main class="app">
-<header><div><small>PROTOTYP PWA • v0.7.1</small><h1>Mój Grafik</h1>
-<p>Dwa formaty grafiku • lokalne przygotowanie obrazu • kontrola</p></div></header>
-
-<section class="card">
-<h2>1. Typ grafiku</h2>
-<div class="mode">
-<label><input type="radio" name="mode" value="collective" checked> <b>Grafik zbiorczy</b><small>z oznaczeniami I–XV, S16–S26</small></label>
-<label><input type="radio" name="mode" value="individual"> <b>Harmonogram pracownika</b><small>indywidualny, z godzinami</small></label>
-</div>
-</section>
-
-<section class="card">
-<h2>2. Dodaj zdjęcie</h2>
-<div class="photo-actions">
-<label class="upload">📷 Zrób zdjęcie<input id="cameraPhoto" type="file" accept="image/*" capture="environment"></label>
-<label class="upload">🖼️ Wybierz zapisane zdjęcie<input id="libraryPhoto" type="file" accept="image/*"></label>
-</div>
-<img id="preview" hidden alt="Podgląd grafiku">
-<p id="photoInfo" class="hint">Zdjęcie jest przygotowywane lokalnie na urządzeniu.</p><p id="appDiag" class="hint diag">Moduł zdjęć: uruchamianie…</p>
-</section>
-
-<section class="card" id="privacyCard">
-<h2>3. Prywatność / wybór własnego wiersza</h2>
-<p class="hint">Dla grafiku zbiorczego ustaw dwa suwaki tak, aby zielony pas obejmował <b>tylko Twój wiersz</b>. Nagłówek z dniami pozostawiamy do analizy. Oryginalne zdjęcie nie jest zmieniane.</p>
-<div id="cropWrap" class="cropWrap" hidden>
-<canvas id="cropCanvas"></canvas>
-<div class="sliderBlock"><label>Górna krawędź mojego wiersza <b id="topVal"></b></label><input id="topRange" type="range" min="0" max="100" value="38"></div>
-<div class="sliderBlock"><label>Dolna krawędź mojego wiersza <b id="bottomVal"></b></label><input id="bottomRange" type="range" min="0" max="100" value="55"></div>
-<div class="sliderBlock"><label>Początek kolumny dnia 1 <b id="leftVal"></b></label><input id="leftRange" type="range" min="0" max="100" value="12"></div>
-<div class="sliderBlock"><label>Koniec ostatniego dnia miesiąca <b id="rightVal"></b></label><input id="rightRange" type="range" min="0" max="100" value="98"></div>
-<p class="hint">Ustaw pionowe linie na lewej krawędzi dnia 1 i prawej krawędzi ostatniego dnia. Aplikacja podzieli przestrzeń pomiędzy nimi równo na dni miesiąca.</p>
-<button id="autoRow">🎯 Geometria ustawiana ręcznie</button>
-</div>
-</section>
-
-<section class="card">
-<h2>4. Odczyt</h2>
-<div class="grid2"><label>Pracownik<input id="employee" value="BRZÓSKA"></label>
+<!doctype html><html lang="pl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="style.css">
+<title>Mój Grafik</title></head><body><main>
+<header><small>RESET • v0.3R</small><h1>Mój Grafik</h1><p>Prosty OCR — bez cięcia tabeli i bez suwaków.</p></header>
+<section><h2>1. Dodaj grafik</h2><div class="buttons">
+<label>📷 Zrób zdjęcie<input id="cam" type="file" accept="image/*" capture="environment"></label>
+<label>🖼️ Wybierz zdjęcie<input id="file" type="file" accept="image/*"></label></div>
+<img id="preview" hidden><p id="photo">Moduł zdjęć: gotowy ✓</p></section>
+<section><h2>2. Odczytaj</h2><div class="two"><label>Pracownik<input id="name" value="BRZÓSKA"></label>
 <label>Miesiąc<input id="month" type="month" value="2026-08"></label></div>
-<button id="ocrBtn" disabled>🔎 Odczytaj grafik</button>
-<div id="ocrStatus"></div>
-<details><summary>Diagnostyka OCR</summary><pre id="ocrRaw" class="ocrRaw"></pre></details>
-</section>
-
-<section class="card">
-<h2>5. Kontrola miesiąca</h2>
-<p id="scheduleTitle">Jeszcze nie odczytano grafiku</p>
-<div id="summary"></div><div id="schedule"></div>
-</section>
-
-<details class="card"><summary><b>6. Tryb ręczny / awaryjny</b></summary>
-<label>Wpisy z kolejnych dni<textarea id="rowInput" rows="5"></textarea></label>
-<div class="photo-actions"><button id="loadSample">Próbka BRZÓSKA</button><button id="analyzeRow">Utwórz miesiąc</button></div>
-<div id="rowError"></div>
-</details>
-
-<details class="card"><summary><b>7. Reguły zmian</b></summary><div id="rules"></div></details>
-</main>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="app.js?v=071"></script></body></html>
+<button id="ocr" disabled>🔎 Odczytaj grafik</button><div id="status"></div>
+<details><summary>Diagnostyka OCR</summary><pre id="raw"></pre></details></section>
+<section><h2>3. Wynik OCR</h2><p>Ta wersja celowo pokazuje surowy wynik. Niczego nie zgaduje i nie zamienia braków na „wolne”.</p>
+<textarea id="result" rows="10" placeholder="Tutaj pojawi się tekst rozpoznany ze zdjęcia"></textarea></section>
+<section><h2>4. Ręczny wpis miesiąca</h2><p>Możesz wkleić 28–31 wpisów oddzielonych przecinkami, np. <code>UW, UW, 3, 3/I, -, 1...</code></p>
+<textarea id="manual" rows="5"></textarea><button id="build">Utwórz kontrolę</button><div id="days"></div></section>
+</main><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script><script src="app.js?v=03R"></script></body></html>

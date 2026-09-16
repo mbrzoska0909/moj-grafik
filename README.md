@@ -1,14 +1,11 @@
-# Mój Grafik PWA v0.7.1
+# Mój Grafik — RESET v0.3R
 
-Wersja naprawcza grafiku zbiorczego.
+Celowo cofnięta, prosta wersja testowa.
 
-Zmiany:
-- OCR nie próbuje już rozpoznawać numerów dni 1–31 w nagłówku.
-- Użytkownik ustawia 4 granice: górę i dół własnego wiersza oraz początek dnia 1 i koniec ostatniego dnia.
-- Aplikacja dzieli wskazany zakres matematycznie na 28/29/30/31 równych komórek.
-- Niebieskie linie pokazują poziomy zakres dni; zielona ramka pokazuje analizowany obszar.
-- Każda komórka jest powiększana 6× przed OCR.
-- Nierozpoznany wpis pozostaje `?`.
-- Po wybraniu nowego zdjęcia czyszczona jest stara diagnostyka i poprzedni wynik.
+- zachowuje działające wybieranie zdjęcia na iPhone,
+- wraca do pełnoobrazowego OCR podobnego do wczesnego v0.3,
+- usuwa suwaki, automatyczne wybieranie wiersza, dzielenie na 31 komórek i zgadywanie,
+- pokazuje surowy OCR, żeby najpierw zmierzyć realną jakość rozpoznania,
+- ma ręczny tryb wpisania miesiąca.
 
-Przed eksportem wynik nadal wymaga kontroli.
+To jest punkt odniesienia. Najpierw odzyskujemy jakość OCR, potem dodajemy jedną funkcję naraz.
