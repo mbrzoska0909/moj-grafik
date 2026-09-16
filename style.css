@@ -2,3 +2,5 @@
 .copy{grid-column:2;background:#f2f4f7;color:#344054;border:1px solid #d0d5dd;padding:7px 10px;margin-top:-3px;font-size:12px}
 .copy:active{background:#dbeafe}
 @media(max-width:480px){.copy{grid-column:1/3;margin-left:78px}}
+
+button:disabled{opacity:.4}

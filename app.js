@@ -1,15 +1,18 @@
 const $=s=>document.querySelector(s);
-const names=['niedz.','pon.','wt.','śr.','czw.','pt.','sob.']; let data={}, detailDay=null;
+const names=['niedz.','pon.','wt.','śr.','czw.','pt.','sob.']; let data={}, detailDay=null, history=[];
+function snapshot(){history.push(JSON.stringify(data));if(history.length>50)history.shift()}
+function undo(){if(!history.length)return;data=JSON.parse(history.pop());localStorage.setItem(key(),JSON.stringify(data));render()}
 function key(){return 'grafik-'+$('#month').value}
 function load(){try{data=JSON.parse(localStorage.getItem(key())||'{}')}catch{data={}};render()}
 function save(){localStorage.setItem(key(),JSON.stringify(data));render()}
 function nDays(){let[y,m]=$('#month').value.split('-').map(Number);return new Date(y,m,0).getDate()}
-function setShift(d,s){data[d]=data[d]||{}; if(data[d].shift===s){delete data[d]}else{data[d].shift=s;delete data[d].special}save()}
-function copyAbove(d){
- if(d<=1)return;
- const prev=data[d-1];
- if(!prev || (!prev.shift && !prev.special)){return}
- data[d]=JSON.parse(JSON.stringify(prev));
+function setShift(d,s){snapshot();data[d]=data[d]||{}; if(data[d].shift===s){delete data[d]}else{data[d].shift=s;delete data[d].special}save()}
+function copyBelow(d){
+ const n=nDays(); if(d>=n)return;
+ const cur=data[d];
+ if(!cur || (!cur.shift && !cur.special))return;
+ snapshot();
+ data[d+1]=JSON.parse(JSON.stringify(cur));
  save();
 }
 function label(v){if(!v)return '—';if(v.special)return v.special;return (v.shift||'—')+(v.ann?'/'+v.ann:'')}
@@ -21,15 +24,15 @@ function render(){
  <div class="choices">
  ${['1','2','3','W'].map(s=>`<button class="shift s${s} ${(s==='W'&&v.shift==='W')||v.shift===s?'on':''}" onclick="setShift(${d},'${s}')">${s}</button>`).join('')}
  <button class="more" onclick="openDetail(${d})">•••</button></div>
- ${d>1?`<button class="copy" onclick="copyAbove(${d})">↓ Kopiuj powyżej</button>`:''}</div>`}
+ ${d<n?`<button class="copy" onclick="copyBelow(${d})">↓ Kopiuj poniżej</button>`:''}</div>`}
  $('#days').innerHTML=html;$('#progress').textContent=`${filled}/${n} dni`;
- $('#summary').innerHTML=`<b>${hours} h pracy</b><span> • uzupełniono ${filled} z ${n} dni</span>`;
+ $('#summary').innerHTML=`<b>${hours} h pracy</b><span> • uzupełniono ${filled} z ${n} dni</span>`;let ub=$('#undo');if(ub)ub.disabled=!history.length;
 }
-window.setShift=setShift;window.copyAbove=copyAbove;
+window.setShift=setShift;window.copyBelow=copyBelow;window.undo=undo;
 window.openDetail=d=>{detailDay=d;let v=data[d]||{};$('#detailTitle').textContent=`Dzień ${d}`;$('#ann').value=v.ann||'';$('#special').value=v.special||'';$('#detail').showModal()}
-$('#saveDetail').onclick=e=>{e.preventDefault();let v=data[detailDay]||{};v.ann=$('#ann').value;v.special=$('#special').value;if(v.special){delete v.shift;delete v.ann}data[detailDay]=v;$('#detail').close();save()}
+$('#saveDetail').onclick=e=>{e.preventDefault();snapshot();let v=data[detailDay]||{};v.ann=$('#ann').value;v.special=$('#special').value;if(v.special){delete v.shift;delete v.ann}data[detailDay]=v;$('#detail').close();save()}
 $('#month').onchange=load;
-$('#clear').onclick=()=>{if(confirm('Wyczyścić cały wybrany miesiąc?')){data={};localStorage.removeItem(key());render()}}
+$('#clear').onclick=()=>{if(confirm('Wyczyścić cały wybrany miesiąc?')){snapshot();data={};localStorage.removeItem(key());render()}}
 function pad(x){return String(x).padStart(2,'0')}
 function esc(s){return String(s).replace(/([,;\\])/g,'\\$1').replace(/\n/g,'\\n')}
 function times(v){
