@@ -5,6 +5,13 @@ function load(){try{data=JSON.parse(localStorage.getItem(key())||'{}')}catch{dat
 function save(){localStorage.setItem(key(),JSON.stringify(data));render()}
 function nDays(){let[y,m]=$('#month').value.split('-').map(Number);return new Date(y,m,0).getDate()}
 function setShift(d,s){data[d]=data[d]||{}; if(data[d].shift===s){delete data[d]}else{data[d].shift=s;delete data[d].special}save()}
+function copyAbove(d){
+ if(d<=1)return;
+ const prev=data[d-1];
+ if(!prev || (!prev.shift && !prev.special)){return}
+ data[d]=JSON.parse(JSON.stringify(prev));
+ save();
+}
 function label(v){if(!v)return '—';if(v.special)return v.special;return (v.shift||'—')+(v.ann?'/'+v.ann:'')}
 function render(){
  let[y,m]=$('#month').value.split('-').map(Number),n=nDays(),html='',filled=0,hours=0;
@@ -13,11 +20,12 @@ function render(){
  <div class="date"><b>${d}</b><small>${dow}</small><em>${label(v)}</em></div>
  <div class="choices">
  ${['1','2','3','W'].map(s=>`<button class="shift s${s} ${(s==='W'&&v.shift==='W')||v.shift===s?'on':''}" onclick="setShift(${d},'${s}')">${s}</button>`).join('')}
- <button class="more" onclick="openDetail(${d})">•••</button></div></div>`}
+ <button class="more" onclick="openDetail(${d})">•••</button></div>
+ ${d>1?`<button class="copy" onclick="copyAbove(${d})">↓ Kopiuj powyżej</button>`:''}</div>`}
  $('#days').innerHTML=html;$('#progress').textContent=`${filled}/${n} dni`;
  $('#summary').innerHTML=`<b>${hours} h pracy</b><span> • uzupełniono ${filled} z ${n} dni</span>`;
 }
-window.setShift=setShift;
+window.setShift=setShift;window.copyAbove=copyAbove;
 window.openDetail=d=>{detailDay=d;let v=data[d]||{};$('#detailTitle').textContent=`Dzień ${d}`;$('#ann').value=v.ann||'';$('#special').value=v.special||'';$('#detail').showModal()}
 $('#saveDetail').onclick=e=>{e.preventDefault();let v=data[detailDay]||{};v.ann=$('#ann').value;v.special=$('#special').value;if(v.special){delete v.shift;delete v.ann}data[detailDay]=v;$('#detail').close();save()}
 $('#month').onchange=load;
