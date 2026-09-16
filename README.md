@@ -1,11 +1,11 @@
-# Mój Grafik PWA v0.6.1
+# Mój Grafik PWA v0.6.2
 
-Poprawka v0.6 dla iPhone/Safari/PWA:
-- niezawodniejsze wczytywanie zdjęcia przez FileReader,
-- widoczny status „Wczytuję…”,
-- oczekiwanie na faktyczne zdekodowanie obrazu przed pokazaniem narzędzi,
-- komunikat błędu zamiast cichego powrotu,
-- możliwość ponownego wybrania tego samego zdjęcia,
-- nowy cache service workera.
+Naprawa wyboru zdjęć na iPhone:
+- natywny input pliku przykrywa cały przycisk (bez pośredniego kliknięcia label),
+- obsługa zarówno `input`, jak i `change`,
+- `createImageBitmap` + fallback do blob URL,
+- status pojawia się natychmiast po faktycznym przekazaniu pliku,
+- diagnostyka „Moduł zdjęć: gotowy ✓” potwierdza załadowanie nowego JavaScript,
+- tymczasowo wyłączone agresywne cache PWA, żeby GitHub Pages nie podawał starej wersji.
 
-Pozostałe funkcje v0.6 pozostają: dwa formaty grafiku, zaznaczanie własnego wiersza i OCR.
+Jeśli po wybraniu zdjęcia nie pojawi się nawet komunikat „Plik został wybrany”, problem jest przed handlerem JS (picker/PWA/cache), co będzie od razu widoczne diagnostycznie.

@@ -18,52 +18,59 @@ let selectedPhoto=null, imageBitmap=null;
 const $=s=>document.querySelector(s);
 const mode=()=>document.querySelector('input[name="mode"]:checked').value;
 
-async function showPhoto(e){
- const input=e.currentTarget, f=input.files && input.files[0];
- if(!f){ $('#photoInfo').textContent='Nie wybrano zdjęcia.'; return; }
- selectedPhoto=f;
+let photoBusy=false;
+async function handleChosenFile(input){
+ if(photoBusy)return;
+ const f=input.files && input.files[0];
+ if(!f){return}
+ photoBusy=true; selectedPhoto=f;
  const img=$('#preview');
- $('#photoInfo').textContent=`Wczytuję: ${f.name||'zdjęcie'}…`;
- $('#ocrStatus').innerHTML='';
- $('#ocrBtn').disabled=true;
- $('#cropWrap').hidden=true;
-
+ $('#photoInfo').textContent=`Wczytuję zdjęcie (${(f.size/1024/1024).toFixed(1)} MB)…`;
+ $('#ocrStatus').innerHTML=`<div class="result">📷 Plik został wybrany. Przygotowuję podgląd…</div>`;
+ $('#ocrBtn').disabled=true; $('#cropWrap').hidden=true;
  try{
-   // FileReader is more reliable in iOS Safari/PWA than keeping a blob URL
-   // across the native photo-picker transition.
-   const dataURL=await new Promise((resolve,reject)=>{
-     const r=new FileReader();
-     r.onload=()=>resolve(r.result);
-     r.onerror=()=>reject(r.error||new Error('Nie udało się odczytać pliku.'));
-     r.readAsDataURL(f);
-   });
-
+   let loaded=false;
+   // First choice for modern iOS Safari.
+   if('createImageBitmap' in window){
+     try{
+       const bmp=await createImageBitmap(f);
+       const c=document.createElement('canvas');
+       c.width=bmp.width;c.height=bmp.height;
+       c.getContext('2d').drawImage(bmp,0,0);
+       img.src=c.toDataURL('image/jpeg',0.92);
+       if(bmp.close)bmp.close();
+       loaded=true;
+     }catch(_){}
+   }
+   // Fallback: object URL. Keep it alive; revoking early can break iOS PWA.
+   if(!loaded){
+     const u=URL.createObjectURL(f);
+     img.src=u; img.dataset.url=u;
+   }
    await new Promise((resolve,reject)=>{
-     let done=false;
-     const ok=()=>{if(done)return;done=true;resolve()};
-     const bad=()=>{if(done)return;done=true;reject(new Error('iPhone nie zdekodował wybranego obrazu.'))};
-     img.onload=ok; img.onerror=bad; img.src=dataURL; img.hidden=false;
-     if(img.complete && img.naturalWidth) ok();
-     setTimeout(()=>{ if(!done && img.naturalWidth) ok(); },250);
-     setTimeout(()=>{ if(!done) bad(); },8000);
+     if(img.complete && img.naturalWidth){resolve();return}
+     const timer=setTimeout(()=>reject(new Error('Przekroczono czas dekodowania obrazu.')),12000);
+     img.onload=()=>{clearTimeout(timer);resolve()};
+     img.onerror=()=>{clearTimeout(timer);reject(new Error('Safari nie może wyświetlić tego obrazu.'))};
    });
-
-   imageBitmap=img;
-   $('#cropWrap').hidden=false;
-   drawMask();
-   $('#photoInfo').textContent=`Wybrano: ${f.name||'zdjęcie'} • ${(f.size/1024/1024).toFixed(1)} MB • ${img.naturalWidth}×${img.naturalHeight}`;
+   img.hidden=false; imageBitmap=img; $('#cropWrap').hidden=false; drawMask();
+   $('#photoInfo').textContent=`Gotowe • ${(f.size/1024/1024).toFixed(1)} MB • ${img.naturalWidth}×${img.naturalHeight}`;
+   $('#ocrStatus').innerHTML=`<div class="result"><b>✓ Zdjęcie wczytane.</b> Ustaw swój wiersz i naciśnij „Odczytaj grafik”.</div>`;
    $('#ocrBtn').disabled=false;
  }catch(err){
-   selectedPhoto=null; imageBitmap=null; img.hidden=true;
-   $('#photoInfo').textContent='Nie udało się wczytać zdjęcia.';
-   $('#ocrStatus').innerHTML=`<div class="result warn"><b>Błąd wczytywania zdjęcia.</b><br>${err.message||err}<br>Spróbuj wybrać zdjęcie ponownie.</div>`;
+   $('#photoInfo').textContent='Nie udało się przygotować podglądu.';
+   $('#ocrStatus').innerHTML=`<div class="result warn"><b>Błąd obrazu:</b> ${err.message||err}</div>`;
  }finally{
-   // Allows selecting the same photo again on iOS and still fires change.
-   input.value='';
+   photoBusy=false;
  }
 }
-$('#cameraPhoto').addEventListener('change',showPhoto);
-$('#libraryPhoto').addEventListener('change',showPhoto);
+function bindPhotoInput(id){
+ const el=$(id);
+ // Both events are intentional: iOS versions differ in which is most reliable after picker.
+ el.addEventListener('change',()=>handleChosenFile(el));
+ el.addEventListener('input',()=>handleChosenFile(el));
+}
+bindPhotoInput('#cameraPhoto');bindPhotoInput('#libraryPhoto');
 
 function clampRanges(){
  let a=+$ ('#topRange').value,b=+$ ('#bottomRange').value;
@@ -142,3 +149,5 @@ $('#analyzeRow').onclick=()=>{let n=daysInMonth($('#month').value),a=$('#rowInpu
 $('#loadSample').onclick=()=>{let a=['UW','UW','UW','3','3','3/I','-','1','3','3','3','-','-','-','2','2/VI','2/IX','3','3','3','-','-','-','1','2/VIII','3','-','-','1','1','2/S16'];$('#month').value='2026-08';$('#rowInput').value=a.join(', ');renderEntries(a)};
 function buildRules(){let h='<table><tr><th>Kod</th><th>1 zm.</th><th>2 zm.</th><th>3 zm.</th></tr>';for(let k of keys){let r=rules[k];h+=`<tr><td>${k}</td><td>${r[1]?fmt(r[1]):'brak'}</td><td>${r[2]?fmt(r[2]):'brak'}</td><td>${r[3]?fmt(r[3]):'brak'}</td></tr>`}$('#rules').innerHTML=h+'</table>'}buildRules();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+
+setTimeout(()=>{const d=document.querySelector('#appDiag');if(d)d.textContent='Moduł zdjęć: gotowy ✓';},0);
