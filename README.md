@@ -1,6 +1,6 @@
 # Mój Grafik — prototyp PWA
 
-Pierwsza działająca wersja aplikacji do interpretowania grafików pracy.
+Wersja 0.1.1 — pierwsza działająca wersja aplikacji do interpretowania grafików pracy.
 
 ## Uruchomienie
 W katalogu projektu uruchom lokalny serwer, np.:
@@ -20,3 +20,8 @@ Następnie otwórz http://localhost:8080
 
 ## Następny etap
 OCR tabeli ze zdjęcia i automatyczne wydobycie wybranego wiersza pracownika, następnie Google Calendar.
+
+
+## v0.1.1
+- osobny przycisk aparatu
+- osobny wybór zapisanego zdjęcia z iPhone'a
