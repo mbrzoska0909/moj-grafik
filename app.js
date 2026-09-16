@@ -15,23 +15,54 @@ document.querySelector('#parseBtn').onclick=()=>{let p=parse(document.querySelec
 let selectedPhoto=null;
 function showPhoto(e){let f=e.target.files[0];if(!f)return;selectedPhoto=f;let img=document.querySelector('#preview');if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);let url=URL.createObjectURL(f);img.dataset.url=url;img.src=url;img.hidden=false;document.querySelector('#photoInfo').textContent=`Wybrano: ${f.name||'zdjęcie'} • ${(f.size/1024/1024).toFixed(1)} MB`;document.querySelector('#ocrBtn').disabled=false;document.querySelector('#ocrStatus').innerHTML='';}
 document.querySelector('#cameraPhoto').onchange=showPhoto;document.querySelector('#libraryPhoto').onchange=showPhoto;
-function ocrTokens(text){
-  let clean=text.toUpperCase().replace(/\\/g,'/').replace(/[|]/g,'/').replace(/\bU[WV]\b/g,'UW');
-  const re=/(?:BHP|BO|UW|[123](?:\/(?:S-?\s*(?:1[6-9]|2[0-6])|X(?:II|III|IV|V|I)?|IX|VIII|VII|VI|IV|III|II|I|V))?)/g;
-  return (clean.match(re)||[]).map(x=>x.replace(/\s/g,'').replace('S-','S'));
+
+function normWord(s){return (s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]/g,'')}
+function editDistance(a,b){a=normWord(a);b=normWord(b);let d=Array.from({length:a.length+1},()=>Array(b.length+1).fill(0));for(let i=0;i<=a.length;i++)d[i][0]=i;for(let j=0;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
+function validCode(raw){let x=normalize(raw).replace(/[.:]/g,'').replace(/^U[VW]$/,'UW');if(!x)return'';if(['UW','BO','BHP','1','2','3'].includes(x))return x;let m=x.match(/^([123])\/(S(?:1[6-9]|2[0-6])|I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV)$/);return m?x:''}
+function groupLines(words){
+  let arr=(words||[]).filter(w=>w.text&&w.bbox).map(w=>({text:w.text,x0:w.bbox.x0,x1:w.bbox.x1,y0:w.bbox.y0,y1:w.bbox.y1,cy:(w.bbox.y0+w.bbox.y1)/2,h:w.bbox.y1-w.bbox.y0}));
+  arr.sort((a,b)=>a.cy-b.cy);let hs=arr.map(w=>w.h).sort((a,b)=>a-b), med=hs[Math.floor(hs.length/2)]||12, lines=[];
+  for(const w of arr){let line=lines.find(l=>Math.abs(l.cy-w.cy)<Math.max(7,med*.75));if(!line){line={cy:w.cy,words:[]};lines.push(line)}line.words.push(w);line.cy=line.words.reduce((s,z)=>s+z.cy,0)/line.words.length}
+  return lines.map(l=>{l.words.sort((a,b)=>a.x0-b.x0);l.text=l.words.map(w=>w.text).join(' ');l.x0=Math.min(...l.words.map(w=>w.x0));l.x1=Math.max(...l.words.map(w=>w.x1));l.y0=Math.min(...l.words.map(w=>w.y0));l.y1=Math.max(...l.words.map(w=>w.y1));return l}).sort((a,b)=>a.cy-b.cy)
+}
+function findEmployeeLine(lines,name){
+  let target=normWord(name), best=null;
+  for(const l of lines){for(const w of l.words){let n=normWord(w.text);if(!n)continue;let dist=editDistance(n,target), score=dist/Math.max(n.length,target.length);if(!best||score<best.score)best={line:l,word:w,score}}}
+  return best&&best.score<=0.45?best:null
+}
+function inferGrid(words,employeeX,imageWidth,expected){
+  let dayWords=(words||[]).filter(w=>w.bbox&&/^(?:[1-9]|[12]\d|3[01])$/.test((w.text||'').trim())&&w.bbox.x0>employeeX);
+  let by={};for(const w of dayWords){let n=+w.text.trim();(by[n]??=[]).push((w.bbox.x0+w.bbox.x1)/2)}
+  let xs=[];for(let n=1;n<=expected;n++)if(by[n])xs.push([n,by[n].sort((a,b)=>a-b)[0]]);
+  xs.sort((a,b)=>a[0]-b[0]);
+  if(xs.length>=Math.min(12,expected/2)){let vals=xs.map(([n,x])=>({n,x}));let slopes=[];for(let i=1;i<vals.length;i++){let dn=vals[i].n-vals[i-1].n;if(dn>0)slopes.push((vals[i].x-vals[i-1].x)/dn)}slopes=slopes.filter(x=>x>2).sort((a,b)=>a-b);let step=slopes[Math.floor(slopes.length/2)]||((imageWidth-employeeX)/expected);let starts=vals.map(v=>v.x-(v.n-1)*step).sort((a,b)=>a-b);return{start:starts[Math.floor(starts.length/2)],step,source:'nagłówek dni'}}
+  return{start:employeeX+Math.max(35,(imageWidth-employeeX)*.025),step:(imageWidth-employeeX-Math.max(35,(imageWidth-employeeX)*.025))/expected,source:'geometria tabeli'}
+}
+function tokensForEmployee(words,line,employeeWord,grid,expected){
+  let bandTop=line.y0-Math.max(4,(line.y1-line.y0)*.35),bandBottom=line.y1+Math.max(5,(line.y1-line.y0)*.55);
+  let row=(words||[]).filter(w=>w.bbox&&w.bbox.y1>=bandTop&&w.bbox.y0<=bandBottom&&w.bbox.x0>employeeWord.x1+5);
+  let cells=Array.from({length:expected},()=>[]);
+  for(const w of row){let cx=(w.bbox.x0+w.bbox.x1)/2, idx=Math.round((cx-grid.start)/grid.step);if(idx>=0&&idx<expected)cells[idx].push(w)}
+  return cells.map(cell=>{cell.sort((a,b)=>a.bbox.x0-b.bbox.x0);let joined=cell.map(w=>w.text).join('').replace(/\s/g,'');let direct=validCode(joined);if(direct)return direct;for(const w of cell){let c=validCode(w.text);if(c)return c}return''})
 }
 async function runOCR(){
   if(!selectedPhoto)return;
-  const btn=document.querySelector('#ocrBtn'), status=document.querySelector('#ocrStatus');btn.disabled=true;
-  status.innerHTML=`<div class='result'><b>Rozpoznawanie…</b><div class='progress'><i id='ocrBar'></i></div><span id='ocrPct'>0%</span></div>`;
+  const btn=document.querySelector('#ocrBtn'),status=document.querySelector('#ocrStatus');btn.disabled=true;
+  status.innerHTML=`<div class='result'><b>Analizuję zdjęcie i szukam wiersza pracownika…</b><div class='progress'><i id='ocrBar'></i></div><span id='ocrPct'>0%</span></div>`;
   try{
-    const result=await Tesseract.recognize(selectedPhoto,'pol+eng',{logger:m=>{if(m.status==='recognizing text'){let pct=Math.round((m.progress||0)*100);let b=document.querySelector('#ocrBar'),t=document.querySelector('#ocrPct');if(b)b.style.width=pct+'%';if(t)t.textContent=pct+'%';}}});
-    const text=result.data.text||'';document.querySelector('#ocrRaw').textContent=text;
-    let tokens=ocrTokens(text), expected=daysInMonth(document.querySelector('#month').value);
-    document.querySelector('#rowInput').value=tokens.join(', ');
-    status.innerHTML=`<div class='result'><b>OCR zakończony.</b> Znaleziono ${tokens.length} wpisów przypominających zmiany. ${tokens.length===expected?'Liczba pasuje do miesiąca.':'To nie jest jeszcze pewny odczyt całego wiersza — sprawdź wynik poniżej.'}</div>`;
-    if(tokens.length===expected)render(tokens);
-  }catch(err){status.innerHTML=`<div class='result warn'><b>OCR nie powiódł się.</b> ${String(err.message||err)}</div>`}
+    const result=await Tesseract.recognize(selectedPhoto,'pol+eng',{logger:m=>{if(m.status==='recognizing text'){let pct=Math.round((m.progress||0)*100),b=document.querySelector('#ocrBar'),t=document.querySelector('#ocrPct');if(b)b.style.width=pct+'%';if(t)t.textContent=pct+'%'}}});
+    let data=result.data||{}, words=data.words||[], text=data.text||'', expected=daysInMonth(document.querySelector('#month').value), employee=document.querySelector('#employee').value||'BRZÓSKA';
+    document.querySelector('#ocrRaw').textContent=text;
+    if(!words.length)throw new Error('OCR zwrócił tekst, ale bez położeń wyrazów. Spróbuj ponownie lub użyj wyraźniejszego zdjęcia.');
+    let lines=groupLines(words), found=findEmployeeLine(lines,employee);
+    if(!found)throw new Error(`Nie znalazłem pewnie nazwiska „${employee}”. Wpisz nazwisko dokładnie tak, jak jest na grafiku i spróbuj ponownie.`);
+    let img=document.querySelector('#preview'), imageWidth=data.imageSize?.width||img.naturalWidth||2000;
+    let grid=inferGrid(words,found.word.x1,imageWidth,expected), entries=tokensForEmployee(words,found.line,found.word,grid,expected);
+    let recognized=entries.filter(Boolean).length;
+    document.querySelector('#rowInput').value=entries.map(x=>x||'-').join(', ');
+    render(entries);
+    status.innerHTML=`<div class='result'><b>Znalazłem wiersz ${employee}.</b><br>Odczytano ${recognized} z ${expected} dni. Puste komórki traktuję jako wolne. Siatka: ${grid.source}. <b>Sprawdź miesiąc poniżej</b> i popraw tylko ewentualne błędy.</div>`;
+  }catch(err){status.innerHTML=`<div class='result warn'><b>Nie udało się pewnie wydzielić wiersza.</b><br>${String(err.message||err)}<br>Możesz nadal wpisać/poprawić dni ręcznie.</div>`}
   finally{btn.disabled=false}
 }
 document.querySelector('#ocrBtn').onclick=runOCR;
