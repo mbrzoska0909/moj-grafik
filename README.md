@@ -1,27 +1,14 @@
-# Mój Grafik — prototyp PWA
+# Mój Grafik PWA v0.2
 
-Wersja 0.1.1 — pierwsza działająca wersja aplikacji do interpretowania grafików pracy.
+Prototyp PWA do interpretowania grafiku zmianowego.
 
-## Uruchomienie
-W katalogu projektu uruchom lokalny serwer, np.:
+Nowości v0.2:
+- zdjęcie z aparatu lub biblioteki,
+- pole pracownika i miesiąca,
+- wprowadzanie całego wiersza grafiku,
+- kontrola liczby dni,
+- edycja każdej komórki,
+- walidacja zmian i wariantów,
+- zapis ostatniego grafiku lokalnie w przeglądarce.
 
-    python3 -m http.server 8080
-
-Następnie otwórz http://localhost:8080
-
-## Co już działa
-- PWA / instalacja z przeglądarki (tam, gdzie wspierane)
-- wybór zdjęcia i podgląd
-- silnik reguł I–XV oraz S16–S26
-- zmiany 1/2/3 i zmiany nocne
-- BHP, BO, UW
-- walidacja niedozwolonych kombinacji
-- testowy grafik BRZÓSKA — sierpień 2026
-
-## Następny etap
-OCR tabeli ze zdjęcia i automatyczne wydobycie wybranego wiersza pracownika, następnie Google Calendar.
-
-
-## v0.1.1
-- osobny przycisk aparatu
-- osobny wybór zapisanego zdjęcia z iPhone'a
+Automatyczny OCR zdjęcia będzie następnym etapem i wymaga usługi po stronie serwera/API; v0.2 nie udaje, że OCR działa lokalnie.
