@@ -48,13 +48,36 @@ function times(v){
  if(a==='M1*'||a==='M2*')return s==='1'?['050000','130000']:s==='2'?['130000','210000']:null;
  return s==='1'?['060000','140000']:s==='2'?['140000','220000']:s==='3'?['220000','060000']:null;
 }
-$('#ics').onclick=()=>{
- let[y,m]=$('#month').value.split('-').map(Number),out=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Moj Grafik//PL','CALSCALE:GREGORIAN'];
- for(let d=1;d<=nDays();d++){let v=data[d];if(!v)continue;let title=v.special||label(v);
-   if(v.special==='UW'||v.shift==='W'){let ds=`${y}${pad(m)}${pad(d)}`,nd=new Date(y,m-1,d+1),de=`${nd.getFullYear()}${pad(nd.getMonth()+1)}${pad(nd.getDate())}`;out.push('BEGIN:VEVENT',`DTSTART;VALUE=DATE:${ds}`,`DTEND;VALUE=DATE:${de}`,`SUMMARY:${esc(title==='W'?'WOLNE':title)}`,'END:VEVENT');continue}
-   let t=times(v);if(!t)continue;let start=new Date(y,m-1,d,...t[0].match(/../g).slice(0,2).map(Number)),end=new Date(y,m-1,d,...t[1].match(/../g).slice(0,2).map(Number));if(end<=start)end.setDate(end.getDate()+1);
-   let fmt=x=>`${x.getFullYear()}${pad(x.getMonth()+1)}${pad(x.getDate())}T${pad(x.getHours())}${pad(x.getMinutes())}00`;
-   out.push('BEGIN:VEVENT',`DTSTART:${fmt(start)}`,`DTEND:${fmt(end)}`,`SUMMARY:${esc(title)}`,'END:VEVENT');
- }out.push('END:VCALENDAR');let b=new Blob([out.join('\r\n')],{type:'text/calendar'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`grafik-${$('#month').value}.ics`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
+function groupOf(v){
+ if(!v)return null;
+ if(v.special==='UW'||v.shift==='W')return 'W';
+ if(v.special==='BHP'||v.special==='BO')return '1';
+ return ['1','2','3'].includes(v.shift)?v.shift:null;
 }
+function eventLines(y,m,d,v){
+ let title=v.special||label(v);
+ if(v.special==='UW'||v.shift==='W'){
+   let ds=`${y}${pad(m)}${pad(d)}`,nd=new Date(y,m-1,d+1),de=`${nd.getFullYear()}${pad(nd.getMonth()+1)}${pad(nd.getDate())}`;
+   return ['BEGIN:VEVENT',`DTSTART;VALUE=DATE:${ds}`,`DTEND;VALUE=DATE:${de}`,`SUMMARY:${esc(title==='W'?'WOLNE':title)}`,'END:VEVENT'];
+ }
+ let t=times(v);if(!t)return []; // e.g. 3/M1* or 3/M2* is invalid and not exported
+ let start=new Date(y,m-1,d,...t[0].match(/../g).slice(0,2).map(Number)),end=new Date(y,m-1,d,...t[1].match(/../g).slice(0,2).map(Number));
+ if(end<=start)end.setDate(end.getDate()+1);
+ let fmt=x=>`${x.getFullYear()}${pad(x.getMonth()+1)}${pad(x.getDate())}T${pad(x.getHours())}${pad(x.getMinutes())}00`;
+ return ['BEGIN:VEVENT',`DTSTART:${fmt(start)}`,`DTEND:${fmt(end)}`,`SUMMARY:${esc(title)}`,'END:VEVENT'];
+}
+function makeICS(group=null){
+ let[y,m]=$('#month').value.split('-').map(Number),out=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Moj Grafik//PL','CALSCALE:GREGORIAN'];
+ for(let d=1;d<=nDays();d++){let v=data[d];if(!v)continue;if(group&&groupOf(v)!==group)continue;out.push(...eventLines(y,m,d,v))}
+ out.push('END:VCALENDAR');return out.join('\r\n');
+}
+function downloadICS(content,name){
+ let b=new Blob([content],{type:'text/calendar;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
+}
+window.downloadGroup=g=>{
+ const names={1:'1-zmiana',2:'2-zmiana',3:'3-zmiana',W:'wolne'};
+ downloadICS(makeICS(g),`grafik-${$('#month').value}-${names[g]}.ics`);
+};
+$('#ics').onclick=()=>downloadICS(makeICS(),`grafik-${$('#month').value}-wszystko.ics`);
+
 load(); if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});

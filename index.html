@@ -2,7 +2,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="style.css">
 <title>Mój Grafik</title></head><body><main>
-<header><small>MÓJ GRAFIK • MANUAL v1.3</small><h1>Mój Grafik</h1><p>Bez OCR. Wybierz miesiąc i klikaj zmiany.</p></header>
+<header><small>MÓJ GRAFIK • FINAL v2.0</small><h1>Mój Grafik</h1><p>Bez OCR. Wybierz miesiąc i klikaj zmiany.</p></header>
 
 <section class="top">
 <label>Miesiąc <input id="month" type="month" value="2026-09"></label>
@@ -16,7 +16,15 @@
 
 <section>
 <h2>Podsumowanie</h2><div id="summary"></div>
-<button id="ics">📅 Pobierz kalendarz .ics</button>
+<h3>Eksport do kalendarzy</h3>
+<p class="hint">Każda grupa ma osobny plik, dzięki czemu możesz zaimportować ją do odpowiedniego kalendarza Google i zachować jego kolor.</p>
+<div class="exportGrid">
+<button onclick="downloadGroup('1')">🔴 1 zmiana</button>
+<button onclick="downloadGroup('2')">🟢 2 zmiana</button>
+<button onclick="downloadGroup('3')">🟡 3 zmiana</button>
+<button onclick="downloadGroup('W')">🔵 Wolne</button>
+</div>
+<button id="ics" class="secondary">📦 Pobierz wszystko .ics</button>
 <p class="hint">Zmiany zapisują się automatycznie na tym urządzeniu.</p>
 </section>
 
@@ -33,4 +41,4 @@
 <select id="special"><option value="">brak</option><option>UW</option><option>BHP</option><option>BO</option></select></label>
 <div class="dialogBtns"><button value="cancel" class="secondary">Anuluj</button><button id="saveDetail" value="default">Zapisz</button></div>
 </form></dialog>
-</main><script src="app.js?v=13"></script></body></html>
+</main><script src="app.js?v=20"></script></body></html>
