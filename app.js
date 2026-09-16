@@ -18,15 +18,52 @@ let selectedPhoto=null, imageBitmap=null;
 const $=s=>document.querySelector(s);
 const mode=()=>document.querySelector('input[name="mode"]:checked').value;
 
-function showPhoto(e){
- const f=e.target.files?.[0]; if(!f)return; selectedPhoto=f;
- const img=$('#preview'); if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);
- const u=URL.createObjectURL(f);img.dataset.url=u;img.src=u;img.hidden=false;
- img.onload=()=>{imageBitmap=img; $('#cropWrap').hidden=false; drawMask();};
- $('#photoInfo').textContent=`Wybrano: ${f.name||'zdjęcie'} • ${(f.size/1024/1024).toFixed(1)} MB`;
- $('#ocrBtn').disabled=false;
+async function showPhoto(e){
+ const input=e.currentTarget, f=input.files && input.files[0];
+ if(!f){ $('#photoInfo').textContent='Nie wybrano zdjęcia.'; return; }
+ selectedPhoto=f;
+ const img=$('#preview');
+ $('#photoInfo').textContent=`Wczytuję: ${f.name||'zdjęcie'}…`;
+ $('#ocrStatus').innerHTML='';
+ $('#ocrBtn').disabled=true;
+ $('#cropWrap').hidden=true;
+
+ try{
+   // FileReader is more reliable in iOS Safari/PWA than keeping a blob URL
+   // across the native photo-picker transition.
+   const dataURL=await new Promise((resolve,reject)=>{
+     const r=new FileReader();
+     r.onload=()=>resolve(r.result);
+     r.onerror=()=>reject(r.error||new Error('Nie udało się odczytać pliku.'));
+     r.readAsDataURL(f);
+   });
+
+   await new Promise((resolve,reject)=>{
+     let done=false;
+     const ok=()=>{if(done)return;done=true;resolve()};
+     const bad=()=>{if(done)return;done=true;reject(new Error('iPhone nie zdekodował wybranego obrazu.'))};
+     img.onload=ok; img.onerror=bad; img.src=dataURL; img.hidden=false;
+     if(img.complete && img.naturalWidth) ok();
+     setTimeout(()=>{ if(!done && img.naturalWidth) ok(); },250);
+     setTimeout(()=>{ if(!done) bad(); },8000);
+   });
+
+   imageBitmap=img;
+   $('#cropWrap').hidden=false;
+   drawMask();
+   $('#photoInfo').textContent=`Wybrano: ${f.name||'zdjęcie'} • ${(f.size/1024/1024).toFixed(1)} MB • ${img.naturalWidth}×${img.naturalHeight}`;
+   $('#ocrBtn').disabled=false;
+ }catch(err){
+   selectedPhoto=null; imageBitmap=null; img.hidden=true;
+   $('#photoInfo').textContent='Nie udało się wczytać zdjęcia.';
+   $('#ocrStatus').innerHTML=`<div class="result warn"><b>Błąd wczytywania zdjęcia.</b><br>${err.message||err}<br>Spróbuj wybrać zdjęcie ponownie.</div>`;
+ }finally{
+   // Allows selecting the same photo again on iOS and still fires change.
+   input.value='';
+ }
 }
-$('#cameraPhoto').onchange=showPhoto;$('#libraryPhoto').onchange=showPhoto;
+$('#cameraPhoto').addEventListener('change',showPhoto);
+$('#libraryPhoto').addEventListener('change',showPhoto);
 
 function clampRanges(){
  let a=+$ ('#topRange').value,b=+$ ('#bottomRange').value;
