@@ -28,7 +28,7 @@ function parseEntry(raw){const p=parse(raw);return {raw:p.raw==='—'?'':p.raw,o
 
 async function loadPhoto(input){
  const f=input.files?.[0]; if(!f)return;
- selectedPhoto=f; $('#photoInfo').textContent='Wczytuję zdjęcie…'; $('#ocrBtn').disabled=true;
+ selectedPhoto=f; $('#photoInfo').textContent='Wczytuję zdjęcie…'; $('#ocrBtn').disabled=true; $('#ocrRaw').textContent=''; $('#ocrStatus').innerHTML=''; $('#schedule').innerHTML=''; $('#summary').innerHTML=''; $('#scheduleTitle').textContent='Jeszcze nie odczytano grafiku'; lastCells=[];
  const img=$('#preview'), u=URL.createObjectURL(f);
  await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=u;img.hidden=false});
  imageEl=img; $('#photoInfo').textContent=`Gotowe • ${(f.size/1048576).toFixed(1)} MB • ${img.naturalWidth}×${img.naturalHeight}`;
@@ -38,16 +38,26 @@ async function loadPhoto(input){
 ['#cameraPhoto','#libraryPhoto'].forEach(id=>$(id).addEventListener('change',e=>loadPhoto(e.currentTarget).catch(err=>$('#photoInfo').textContent='Błąd obrazu: '+err)));
 
 function ranges(){
- let t=+$('#topRange').value,b=+$('#bottomRange').value;
+ let t=+$('#topRange').value,b=+$('#bottomRange').value,l=+$('#leftRange').value,r=+$('#rightRange').value;
  if(b<=t+2){b=t+3;$('#bottomRange').value=b}
- $('#topVal').textContent=t+'%';$('#bottomVal').textContent=b+'%'; return [t/100,b/100];
+ if(r<=l+20){r=Math.min(100,l+20);$('#rightRange').value=r}
+ $('#topVal').textContent=t+'%';$('#bottomVal').textContent=b+'%';
+ $('#leftVal').textContent=l+'%';$('#rightVal').textContent=r+'%';
+ return [t/100,b/100,l/100,r/100];
 }
 function drawRowPreview(){
  if(!imageEl)return; const c=$('#cropCanvas'),ctx=c.getContext('2d'),scale=Math.min(1,1200/imageEl.naturalWidth);
  c.width=Math.round(imageEl.naturalWidth*scale);c.height=Math.round(imageEl.naturalHeight*scale);ctx.drawImage(imageEl,0,0,c.width,c.height);
- if(mode()==='collective'){let[t,b]=ranges(),y1=t*c.height,y2=b*c.height;ctx.fillStyle='rgba(255,255,255,.72)';ctx.fillRect(0,0,c.width,y1);ctx.fillRect(0,y2,c.width,c.height-y2);ctx.strokeStyle='#16a34a';ctx.lineWidth=4;ctx.strokeRect(2,y1,c.width-4,y2-y1)}
+ if(mode()==='collective'){
+   let[t,b,l,r]=ranges(),y1=t*c.height,y2=b*c.height,x1=l*c.width,x2=r*c.width;
+   ctx.fillStyle='rgba(255,255,255,.66)';ctx.fillRect(0,0,c.width,y1);ctx.fillRect(0,y2,c.width,c.height-y2);
+   ctx.strokeStyle='#16a34a';ctx.lineWidth=4;ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+   ctx.strokeStyle='#2563eb';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x1,0);ctx.lineTo(x1,c.height);ctx.moveTo(x2,0);ctx.lineTo(x2,c.height);ctx.stroke();
+   let n=daysInMonth($('#month').value),step=(x2-x1)/n;ctx.strokeStyle='rgba(37,99,235,.25)';ctx.lineWidth=1;
+   for(let i=1;i<n;i++){let x=x1+i*step;ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.stroke()}
+ }
 }
-$('#topRange').oninput=drawRowPreview;$('#bottomRange').oninput=drawRowPreview;
+$('#topRange').oninput=drawRowPreview;$('#bottomRange').oninput=drawRowPreview;$('#leftRange').oninput=drawRowPreview;$('#rightRange').oninput=drawRowPreview;$('#month').onchange=drawRowPreview;
 document.querySelectorAll('input[name="mode"]').forEach(r=>r.onchange=()=>{let col=mode()==='collective';$('#privacyCard').style.display=col?'block':'none';$('#cropWrap').hidden=!col||!imageEl;drawRowPreview()});
 
 function norm(s){return (s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[|\\]/g,'/').replace(/\s/g,'')}
@@ -85,16 +95,23 @@ async function findHeader(){
  slopes.sort((x,y)=>x-y);let step=slopes[Math.floor(slopes.length/2)];let starts=a.map(p=>p.x-(p.n-1)*step).sort((x,y)=>x-y);return{start:starts[Math.floor(starts.length/2)],step}
 }
 async function collectiveOCR(){
- let n=daysInMonth($('#month').value),[t,b]=ranges(),y0=Math.round(t*imageEl.naturalHeight),y1=Math.round(b*imageEl.naturalHeight),g=await findHeader();
+ let n=daysInMonth($('#month').value),[t,b,l,r]=ranges();
+ let y0=Math.round(t*imageEl.naturalHeight),y1=Math.round(b*imageEl.naturalHeight);
+ let xStart=Math.round(l*imageEl.naturalWidth),xEnd=Math.round(r*imageEl.naturalWidth),step=(xEnd-xStart)/n;
+ if(step<8)throw Error('Zakres dni jest zbyt wąski.');
  lastCells=[];let out=[];
  for(let i=0;i<n;i++){
-   let cx=g.start+i*g.step,x0=Math.max(0,Math.round(cx-g.step*.47)),x1=Math.min(imageEl.naturalWidth,Math.round(cx+g.step*.47));
-   let c=canvasCrop(x0,y0,x1,y1,5);lastCells.push(c.toDataURL('image/jpeg',.9));
-   // Empty detection before OCR: count dark pixels.
-   let d=c.getContext('2d').getImageData(0,0,c.width,c.height).data,dark=0;
-   for(let k=0;k<d.length;k+=16)if(d[k]<115)dark++;
-   let ratio=dark/(d.length/16);
-   if(ratio<.006){out.push('wolne');continue}
+   // Small inset avoids vertical grid lines dominating OCR.
+   let x0=Math.round(xStart+i*step+step*.06),x1=Math.round(xStart+(i+1)*step-step*.06);
+   let c=canvasCrop(x0,y0,x1,y1,6);lastCells.push(c.toDataURL('image/jpeg',.9));
+   let d=c.getContext('2d').getImageData(0,0,c.width,c.height).data,dark=0,total=0;
+   // Ignore a border around each cell when deciding whether it is empty.
+   let cw=c.width,ch=c.height,ctx=c.getContext('2d'),im=ctx.getImageData(0,0,cw,ch).data;
+   for(let yy=Math.floor(ch*.18);yy<ch*.82;yy+=2)for(let xx=Math.floor(cw*.12);xx<cw*.88;xx+=2){
+     let k=(yy*cw+xx)*4;total++;if(im[k]<105)dark++;
+   }
+   let ratio=total?dark/total:0;
+   if(ratio<.008){out.push('wolne');$('#ocrPct').textContent=`${i+1}/${n}`;continue}
    let txt=await ocrCanvas(c),code=cleanCode(txt);out.push(code||'?');
    $('#ocrPct').textContent=`${i+1}/${n}`;
  }
@@ -114,7 +131,7 @@ async function run(){
  if(!imageEl)return;$('#ocrBtn').disabled=true;$('#ocrStatus').innerHTML='<div class="result"><b>Analizuję…</b> <span id="ocrPct"></span></div>';
  try{
   if(mode()==='collective'){
-   let a=await collectiveOCR();render(a);$('#ocrStatus').innerHTML='<div class="result"><b>Gotowe.</b> Każdy dzień został wycięty i przeanalizowany osobno. „?” oznacza, że aplikacja nie zgaduje.</div>';
+   let a=await collectiveOCR();render(a);$('#ocrStatus').innerHTML='<div class="result"><b>Gotowe.</b> Tabela została podzielona według ustawionych granic, a każdy dzień przeanalizowany osobno. „?” oznacza, że aplikacja nie zgaduje.</div>';
   }else{
    // retain simple full-image individual recognition, conservative.
    let r=await Tesseract.recognize(selectedPhoto,'pol+eng'),text=r.data.text||'';$('#ocrRaw').textContent=text;
@@ -132,4 +149,4 @@ $('#loadSample').onclick=()=>{let a=['UW','UW','UW','3','3','3/I','wolne','1','3
 $('#analyzeRow').onclick=()=>{let n=daysInMonth($('#month').value),a=$('#rowInput').value.split(/[,;\n]+/).map(x=>x.trim());if(a.length!==n){$('#rowError').innerHTML=`<div class="result warn">Miesiąc ma ${n} dni, podano ${a.length}.</div>`;return}render(a)};
 $('#rules').innerHTML='<p>I–XI: 1=06–14, 2=14–22, 3=22–06. XII–XIV: bez 3. XV: 1=05–13, 2=13–21. S16: 1=05–13, 2=14–22. S17–S26: 1=05–13, 2=13–21.</p>';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-setTimeout(()=>{let d=$('#appDiag');if(d)d.textContent='Moduł zdjęć: gotowy ✓ • OCR komórka po komórce';},0);
+setTimeout(()=>{let d=$('#appDiag');if(d)d.textContent='Moduł zdjęć: gotowy ✓ • ręczna geometria + OCR komórek';},0);

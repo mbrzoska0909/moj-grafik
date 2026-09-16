@@ -1,12 +1,14 @@
-# Mój Grafik PWA v0.7
+# Mój Grafik PWA v0.7.1
 
-Przebudowany OCR grafiku zbiorczego:
-- najpierw wykrywa geometrię nagłówka dni,
-- wskazany wiersz dzieli na osobne komórki 1–31,
-- każdą komórkę powiększa 5×, konwertuje do skali szarości i zwiększa kontrast,
-- OCR działa osobno dla każdego dnia,
-- nierozpoznany wpis = `?`, nigdy automatycznie „wolne”,
-- ekran kontroli pokazuje miniaturę oryginalnej komórki obok wyniku,
-- zachowane działające wczytywanie zdjęć z v0.6.3.
+Wersja naprawcza grafiku zbiorczego.
 
-To nadal prototyp: przed eksportem wynik musi być skontrolowany.
+Zmiany:
+- OCR nie próbuje już rozpoznawać numerów dni 1–31 w nagłówku.
+- Użytkownik ustawia 4 granice: górę i dół własnego wiersza oraz początek dnia 1 i koniec ostatniego dnia.
+- Aplikacja dzieli wskazany zakres matematycznie na 28/29/30/31 równych komórek.
+- Niebieskie linie pokazują poziomy zakres dni; zielona ramka pokazuje analizowany obszar.
+- Każda komórka jest powiększana 6× przed OCR.
+- Nierozpoznany wpis pozostaje `?`.
+- Po wybraniu nowego zdjęcia czyszczona jest stara diagnostyka i poprzedni wynik.
+
+Przed eksportem wynik nadal wymaga kontroli.

@@ -4,7 +4,7 @@
 <meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="style.css"><title>Mój Grafik</title></head>
 <body><main class="app">
-<header><div><small>PROTOTYP PWA • v0.7</small><h1>Mój Grafik</h1>
+<header><div><small>PROTOTYP PWA • v0.7.1</small><h1>Mój Grafik</h1>
 <p>Dwa formaty grafiku • lokalne przygotowanie obrazu • kontrola</p></div></header>
 
 <section class="card">
@@ -32,7 +32,10 @@
 <canvas id="cropCanvas"></canvas>
 <div class="sliderBlock"><label>Górna krawędź mojego wiersza <b id="topVal"></b></label><input id="topRange" type="range" min="0" max="100" value="38"></div>
 <div class="sliderBlock"><label>Dolna krawędź mojego wiersza <b id="bottomVal"></b></label><input id="bottomRange" type="range" min="0" max="100" value="55"></div>
-<button id="autoRow">🎯 Ustaw wiersz ręcznie</button>
+<div class="sliderBlock"><label>Początek kolumny dnia 1 <b id="leftVal"></b></label><input id="leftRange" type="range" min="0" max="100" value="12"></div>
+<div class="sliderBlock"><label>Koniec ostatniego dnia miesiąca <b id="rightVal"></b></label><input id="rightRange" type="range" min="0" max="100" value="98"></div>
+<p class="hint">Ustaw pionowe linie na lewej krawędzi dnia 1 i prawej krawędzi ostatniego dnia. Aplikacja podzieli przestrzeń pomiędzy nimi równo na dni miesiąca.</p>
+<button id="autoRow">🎯 Geometria ustawiana ręcznie</button>
 </div>
 </section>
 
@@ -60,4 +63,4 @@
 <details class="card"><summary><b>7. Reguły zmian</b></summary><div id="rules"></div></details>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="app.js?v=070"></script></body></html>
+<script src="app.js?v=071"></script></body></html>

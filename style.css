@@ -18,3 +18,5 @@ textarea{width:100%;box-sizing:border-box;margin-top:6px;padding:12px;border:1px
 .day{grid-template-columns:52px 72px minmax(60px,90px) 1fr 18px!important;gap:6px!important}
 .cellshot{width:70px;height:32px;object-fit:contain;border:1px solid #d1d5db;border-radius:4px;background:white}
 @media(max-width:520px){.day{grid-template-columns:42px 58px 70px 1fr 14px!important}.cellshot{width:56px;height:28px}.day input{min-width:0}}
+
+#leftRange,#rightRange{accent-color:#2563eb}
