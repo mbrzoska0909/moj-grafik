@@ -1,11 +1,13 @@
-# Mój Grafik — RESET v0.3R
+# Mój Grafik — PWA v0.3
 
-Celowo cofnięta, prosta wersja testowa.
+Wersja testowa z OCR wykonywanym bezpośrednio w przeglądarce przez Tesseract.js.
 
-- zachowuje działające wybieranie zdjęcia na iPhone,
-- wraca do pełnoobrazowego OCR podobnego do wczesnego v0.3,
-- usuwa suwaki, automatyczne wybieranie wiersza, dzielenie na 31 komórek i zgadywanie,
-- pokazuje surowy OCR, żeby najpierw zmierzyć realną jakość rozpoznania,
-- ma ręczny tryb wpisania miesiąca.
+## Nowości
+- aparat lub zapisane zdjęcie,
+- przycisk „Rozpoznaj zdjęcie”,
+- OCR na urządzeniu (bez wysyłania zdjęcia do własnego backendu),
+- wyciąganie kodów 1/2/3, I–XV, S16–S26, BHP, BO i UW,
+- podgląd surowego tekstu OCR,
+- dalsza ręczna korekta i walidacja miesiąca.
 
-To jest punkt odniesienia. Najpierw odzyskujemy jakość OCR, potem dodajemy jedną funkcję naraz.
+Uwaga: v0.3 to etap eksperymentalny. Pełny arkusz z wieloma pracownikami może wymagać kadrowania/wyboru wiersza; kolejny etap to automatyczne wykrywanie tabeli i wiersza pracownika.
