@@ -1,40 +1,45 @@
-const variants={I:['06:00','14:00','14:00','22:00','22:00','06:00'],II:['06:00','14:00','14:00','22:00','22:00','06:00'],III:['06:00','14:00','14:00','22:00','22:00','06:00'],IV:['06:00','14:00','14:00','22:00','22:00','06:00'],V:['06:00','14:00','14:00','22:00','22:00','06:00'],VI:['06:00','14:00','14:00','22:00','22:00','06:00'],VII:['06:00','14:00','14:00','22:00','22:00','06:00'],VIII:['06:00','14:00','14:00','22:00','22:00','06:00'],IX:['06:00','14:00','14:00','22:00','22:00','06:00'],X:['06:00','14:00','14:00','22:00','22:00','06:00'],XI:['06:00','14:00','14:00','22:00','22:00','06:00'],XII:['06:00','14:00','14:00','22:00',null,null],XIII:['06:00','14:00','14:00','22:00',null,null],XIV:['06:00','14:00','14:00','22:00',null,null],XV:['05:00','13:00','13:00','21:00',null,null],S16:['05:00','13:00','14:00','22:00',null,null]};
-for(let n=17;n<=26;n++)variants['S'+n]=['05:00','13:00','13:00','21:00',null,null];
-const base={1:['06:00','14:00'],2:['14:00','22:00'],3:['22:00','06:00']};
-const special={BHP:{label:'Szkolenie BHP',start:'06:00',end:'14:00'},BO:{label:'Badania okresowe',start:'06:00',end:'14:00'},UW:{label:'Urlop wypoczynkowy / wolne',allDay:true}};
-function normalize(raw){return (raw||'').trim().toUpperCase().replace(/\s/g,'').replaceAll('S-','S')}
-function parse(raw){raw=normalize(raw);if(!raw||raw==='-'||raw==='—')return{raw:'—',label:'Wolne',allDay:true,free:true,valid:true};if(special[raw])return{raw,...special[raw],valid:true};let [shift,v]=raw.split('/');if(!base[shift])return{raw,label:'Nieznany kod',valid:false};let start,end;if(v){let r=variants[v];if(!r)return{raw,shift,variant:v,label:'Nieznane oznaczenie',valid:false};let i=(+shift-1)*2;start=r[i];end=r[i+1];if(!start)return{raw,shift,variant:v,label:'Ta kombinacja nie występuje',valid:false};}else [start,end]=base[shift];return{raw,shift,variant:v,start,end,label:`Zmiana ${shift}${v?' • '+v:''}`,overnight:end<start,valid:true};}
-const sample=['UW','UW','UW','3','3','3/I','','1','3','3','3','','','','2','2/VI','2/IX','3','3','3','','','','1','2/VIII','3','','','1','1','2/S16'];
-function daysInMonth(v){if(!v)return 31;let [y,m]=v.split('-').map(Number);return new Date(y,m,0).getDate()}
-function monthLabel(v){if(!v)return '';let [y,m]=v.split('-').map(Number);return new Intl.DateTimeFormat('pl-PL',{month:'long',year:'numeric'}).format(new Date(y,m-1,1))}
-function splitRow(text){let s=text.trim();if(!s)return[];return s.split(/[;,\n]+/).map(x=>x.trim()).map(x=>(x==='-'||x==='—')?'':x)}
-function render(entries){let good=0,bad=0;const month=document.querySelector('#month').value;let m=month?Number(month.split('-')[1]):8;document.querySelector('#schedule').innerHTML=entries.map((x,i)=>{let p=parse(x);p.valid?good++:bad++;let time=p.allDay?'cały dzień':p.start?`${p.start}–${p.end}${p.overnight?' (+1 dzień)':''}`:p.label;return `<div class='day'><span>${i+1}.${String(m).padStart(2,'0')}</span><input class='dayEdit' data-day='${i}' value='${p.raw==='—'?'':p.raw}' placeholder='wolne'><span>${time}</span><span class='${p.valid?'ok':'warn'}'>${p.valid?'✓':'!'}</span></div>`}).join('');document.querySelector('#summary').innerHTML=`<div class='result'><b>${entries.length} dni</b> • poprawne: ${good} • do sprawdzenia: ${bad}</div>`;document.querySelector('#scheduleTitle').textContent=`${document.querySelector('#employee').value||'Pracownik'} • ${monthLabel(month)}`;document.querySelectorAll('.dayEdit').forEach(el=>el.addEventListener('change',()=>{entries[+el.dataset.day]=el.value;render(entries)}));localStorage.setItem('lastSchedule',JSON.stringify({employee:document.querySelector('#employee').value,month,entries}));}
-document.querySelector('#loadSample').onclick=()=>{document.querySelector('#rowInput').value=sample.map(x=>x||'-').join(', ');document.querySelector('#month').value='2026-08';document.querySelector('#employee').value='BRZÓSKA';render([...sample])};
-document.querySelector('#analyzeRow').onclick=()=>{let entries=splitRow(document.querySelector('#rowInput').value), expected=daysInMonth(document.querySelector('#month').value),err=document.querySelector('#rowError');if(entries.length!==expected){err.innerHTML=`<div class='result warn'><b>Sprawdź liczbę dni:</b> odczytano ${entries.length}, a miesiąc ma ${expected}. Popraw wpisy przed zatwierdzeniem.</div>`;}else err.innerHTML='';render(entries)};
-document.querySelector('#parseBtn').onclick=()=>{let p=parse(document.querySelector('#entry').value);document.querySelector('#parseResult').innerHTML=`<div class='result'><b>${p.raw}</b><br>${p.label}<br>${p.allDay?'Cały dzień':p.start?`${p.start}–${p.end}${p.overnight?' (koniec następnego dnia)':''}`:'⚠ '+p.label}</div>`};
-let selectedPhoto=null;
-function showPhoto(e){let f=e.target.files[0];if(!f)return;selectedPhoto=f;let img=document.querySelector('#preview');if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);let url=URL.createObjectURL(f);img.dataset.url=url;img.src=url;img.hidden=false;document.querySelector('#photoInfo').textContent=`Wybrano: ${f.name||'zdjęcie'} • ${(f.size/1024/1024).toFixed(1)} MB`;document.querySelector('#ocrBtn').disabled=false;document.querySelector('#ocrStatus').innerHTML='';}
-document.querySelector('#cameraPhoto').onchange=showPhoto;document.querySelector('#libraryPhoto').onchange=showPhoto;
-function ocrTokens(text){
-  let clean=text.toUpperCase().replace(/\\/g,'/').replace(/[|]/g,'/').replace(/\bU[WV]\b/g,'UW');
-  const re=/(?:BHP|BO|UW|[123](?:\/(?:S-?\s*(?:1[6-9]|2[0-6])|X(?:II|III|IV|V|I)?|IX|VIII|VII|VI|IV|III|II|I|V))?)/g;
-  return (clean.match(re)||[]).map(x=>x.replace(/\s/g,'').replace('S-','S'));
+const $=s=>document.querySelector(s);
+const names=['niedz.','pon.','wt.','śr.','czw.','pt.','sob.']; let data={}, detailDay=null;
+function key(){return 'grafik-'+$('#month').value}
+function load(){try{data=JSON.parse(localStorage.getItem(key())||'{}')}catch{data={}};render()}
+function save(){localStorage.setItem(key(),JSON.stringify(data));render()}
+function nDays(){let[y,m]=$('#month').value.split('-').map(Number);return new Date(y,m,0).getDate()}
+function setShift(d,s){data[d]=data[d]||{}; if(data[d].shift===s){delete data[d]}else{data[d].shift=s;delete data[d].special}save()}
+function label(v){if(!v)return '—';if(v.special)return v.special;return (v.shift||'—')+(v.ann?'/'+v.ann:'')}
+function render(){
+ let[y,m]=$('#month').value.split('-').map(Number),n=nDays(),html='',filled=0,hours=0;
+ for(let d=1;d<=n;d++){let v=data[d]||{},dow=names[new Date(y,m-1,d).getDay()];if(v.shift||v.special)filled++;if(['1','2','3'].includes(v.shift)||['BHP','BO'].includes(v.special))hours+=8;
+ html+=`<div class="day ${dow==='sob.'||dow==='niedz.'?'weekend':''}">
+ <div class="date"><b>${d}</b><small>${dow}</small><em>${label(v)}</em></div>
+ <div class="choices">
+ ${['1','2','3','W'].map(s=>`<button class="shift s${s} ${(s==='W'&&v.shift==='W')||v.shift===s?'on':''}" onclick="setShift(${d},'${s}')">${s}</button>`).join('')}
+ <button class="more" onclick="openDetail(${d})">•••</button></div></div>`}
+ $('#days').innerHTML=html;$('#progress').textContent=`${filled}/${n} dni`;
+ $('#summary').innerHTML=`<b>${hours} h pracy</b><span> • uzupełniono ${filled} z ${n} dni</span>`;
 }
-async function runOCR(){
-  if(!selectedPhoto)return;
-  const btn=document.querySelector('#ocrBtn'), status=document.querySelector('#ocrStatus');btn.disabled=true;
-  status.innerHTML=`<div class='result'><b>Rozpoznawanie…</b><div class='progress'><i id='ocrBar'></i></div><span id='ocrPct'>0%</span></div>`;
-  try{
-    const result=await Tesseract.recognize(selectedPhoto,'pol+eng',{logger:m=>{if(m.status==='recognizing text'){let pct=Math.round((m.progress||0)*100);let b=document.querySelector('#ocrBar'),t=document.querySelector('#ocrPct');if(b)b.style.width=pct+'%';if(t)t.textContent=pct+'%';}}});
-    const text=result.data.text||'';document.querySelector('#ocrRaw').textContent=text;
-    let tokens=ocrTokens(text), expected=daysInMonth(document.querySelector('#month').value);
-    document.querySelector('#rowInput').value=tokens.join(', ');
-    status.innerHTML=`<div class='result'><b>OCR zakończony.</b> Znaleziono ${tokens.length} wpisów przypominających zmiany. ${tokens.length===expected?'Liczba pasuje do miesiąca.':'To nie jest jeszcze pewny odczyt całego wiersza — sprawdź wynik poniżej.'}</div>`;
-    if(tokens.length===expected)render(tokens);
-  }catch(err){status.innerHTML=`<div class='result warn'><b>OCR nie powiódł się.</b> ${String(err.message||err)}</div>`}
-  finally{btn.disabled=false}
+window.setShift=setShift;
+window.openDetail=d=>{detailDay=d;let v=data[d]||{};$('#detailTitle').textContent=`Dzień ${d}`;$('#ann').value=v.ann||'';$('#special').value=v.special||'';$('#detail').showModal()}
+$('#saveDetail').onclick=e=>{e.preventDefault();let v=data[detailDay]||{};v.ann=$('#ann').value;v.special=$('#special').value;if(v.special){delete v.shift;delete v.ann}data[detailDay]=v;$('#detail').close();save()}
+$('#month').onchange=load;
+$('#clear').onclick=()=>{if(confirm('Wyczyścić cały wybrany miesiąc?')){data={};localStorage.removeItem(key());render()}}
+function pad(x){return String(x).padStart(2,'0')}
+function esc(s){return String(s).replace(/([,;\\])/g,'\\$1').replace(/\n/g,'\\n')}
+function times(v){
+ if(v.special==='UW'||v.shift==='W')return null;
+ if(v.special==='BHP'||v.special==='BO')return ['060000','140000'];
+ let a=v.ann||'',s=v.shift;
+ if(a==='XV')return s==='1'?['050000','130000']:s==='2'?['130000','210000']:null;
+ if(/^S(1[7-9]|2[0-6])$/.test(a))return s==='1'?['050000','130000']:s==='2'?['130000','210000']:null;
+ if(a==='S16')return s==='1'?['050000','130000']:s==='2'?['140000','220000']:null;
+ return s==='1'?['060000','140000']:s==='2'?['140000','220000']:s==='3'?['220000','060000']:null;
 }
-document.querySelector('#ocrBtn').onclick=runOCR;
-let keys=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','S16',...Array.from({length:10},(_,i)=>'S'+(17+i))];document.querySelector('#rules').innerHTML=`<div class='rule head'><span>Kod</span><span>1 zm.</span><span>2 zm.</span><span>3 zm.</span></div>`+keys.map(k=>{let r=variants[k];let t=(a,b)=>a?`${a}–${b}`:'brak';return `<div class='rule'><b>${k}</b><span>${t(r[0],r[1])}</span><span>${t(r[2],r[3])}</span><span>${t(r[4],r[5])}</span></div>`}).join('');
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');let deferred;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;document.querySelector('#install').hidden=false});document.querySelector('#install').onclick=async()=>{if(deferred){deferred.prompt();deferred=null}};
-let saved=localStorage.getItem('lastSchedule');if(saved){try{let s=JSON.parse(saved);document.querySelector('#employee').value=s.employee||'';document.querySelector('#month').value=s.month||'2026-08';document.querySelector('#rowInput').value=(s.entries||[]).map(x=>x||'-').join(', ');render(s.entries||[])}catch(e){}}
+$('#ics').onclick=()=>{
+ let[y,m]=$('#month').value.split('-').map(Number),out=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Moj Grafik//PL','CALSCALE:GREGORIAN'];
+ for(let d=1;d<=nDays();d++){let v=data[d];if(!v)continue;let title=v.special||label(v);
+   if(v.special==='UW'||v.shift==='W'){let ds=`${y}${pad(m)}${pad(d)}`,nd=new Date(y,m-1,d+1),de=`${nd.getFullYear()}${pad(nd.getMonth()+1)}${pad(nd.getDate())}`;out.push('BEGIN:VEVENT',`DTSTART;VALUE=DATE:${ds}`,`DTEND;VALUE=DATE:${de}`,`SUMMARY:${esc(title==='W'?'WOLNE':title)}`,'END:VEVENT');continue}
+   let t=times(v);if(!t)continue;let start=new Date(y,m-1,d,...t[0].match(/../g).slice(0,2).map(Number)),end=new Date(y,m-1,d,...t[1].match(/../g).slice(0,2).map(Number));if(end<=start)end.setDate(end.getDate()+1);
+   let fmt=x=>`${x.getFullYear()}${pad(x.getMonth()+1)}${pad(x.getDate())}T${pad(x.getHours())}${pad(x.getMinutes())}00`;
+   out.push('BEGIN:VEVENT',`DTSTART:${fmt(start)}`,`DTEND:${fmt(end)}`,`SUMMARY:${esc(title)}`,'END:VEVENT');
+ }out.push('END:VCALENDAR');let b=new Blob([out.join('\r\n')],{type:'text/calendar'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`grafik-${$('#month').value}.ics`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
+}
+load(); if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});

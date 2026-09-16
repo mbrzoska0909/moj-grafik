@@ -1,7 +1,35 @@
-<!doctype html><html lang='pl'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><meta name='theme-color' content='#111827'><link rel='manifest' href='manifest.webmanifest'><link rel='stylesheet' href='style.css'><title>Mój Grafik</title></head><body><main class='app'><header><div><small>PROTOTYP PWA • v0.3</small><h1>Mój Grafik</h1><p>Zdjęcie → odczyt → kontrola → kalendarz</p></div><button id='install' hidden>Zainstaluj</button></header>
-<section class='card'><h2>1. Dodaj grafik</h2><div class='photo-actions'><label class='upload'>📷 Zrób zdjęcie<input id='cameraPhoto' type='file' accept='image/*' capture='environment'></label><label class='upload'>🖼️ Wybierz zapisane zdjęcie<input id='libraryPhoto' type='file' accept='image/*'></label></div><img id='preview' hidden alt='Podgląd grafiku'><p id='photoInfo' class='hint'>Wybierz zdjęcie grafiku, a potem uruchom rozpoznawanie. OCR działa bezpośrednio na iPhonie.</p><div class='photo-actions'><button id='ocrBtn' disabled>🔎 Rozpoznaj zdjęcie</button></div><div id='ocrStatus'></div><details><summary>Tekst rozpoznany ze zdjęcia</summary><pre id='ocrRaw' class='ocrRaw'></pre></details></section>
-<section class='card'><h2>2. Odczyt wiersza pracownika</h2><label>Pracownik<input id='employee' value='BRZÓSKA' placeholder='np. BRZÓSKA'></label><label>Miesiąc<input id='month' type='month' value='2026-08'></label><label>Wpisy z kolejnych dni<textarea id='rowInput' rows='5' placeholder='UW, UW, UW, 3, 3, 3/I, -, 1, ...'></textarea></label><p class='hint'>Oddziel dni przecinkami, średnikami lub nową linią. Puste / „-” = wolne.</p><div class='photo-actions'><button id='loadSample'>Wstaw próbkę BRZÓSKA</button><button id='analyzeRow'>Utwórz miesiąc</button></div><div id='rowError'></div></section>
-<section class='card'><div class='row'><div><h2>3. Kontrola miesiąca</h2><p id='scheduleTitle'>Jeszcze nie utworzono grafiku</p></div></div><div id='summary'></div><div id='schedule'></div></section>
-<section class='card'><h2>4. Sprawdź pojedynczy wpis</h2><div class='parse'><input id='entry' placeholder='np. 2/IX, 1/XV, 2/S20, UW'><button id='parseBtn'>Rozpoznaj</button></div><div id='parseResult'></div></section>
-<section class='card'><h2>5. Reguły</h2><div id='rules'></div></section>
-</main><script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script><script src='app.js?v=03'></script></body></html>
+<!doctype html><html lang="pl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="style.css">
+<title>Mój Grafik</title></head><body><main>
+<header><small>MÓJ GRAFIK • MANUAL v1.0</small><h1>Mój Grafik</h1><p>Bez OCR. Wybierz miesiąc i klikaj zmiany.</p></header>
+
+<section class="top">
+<label>Miesiąc <input id="month" type="month" value="2026-09"></label>
+<div class="legend"><span>1 = 06–14</span><span>2 = 14–22</span><span>3 = 22–06</span><span>W = wolne</span></div>
+</section>
+
+<section>
+<div class="toolbar"><button id="clear" class="secondary">Wyczyść miesiąc</button><b id="progress"></b></div>
+<div id="days"></div>
+</section>
+
+<section>
+<h2>Podsumowanie</h2><div id="summary"></div>
+<button id="ics">📅 Pobierz kalendarz .ics</button>
+<p class="hint">Zmiany zapisują się automatycznie na tym urządzeniu.</p>
+</section>
+
+<dialog id="detail"><form method="dialog">
+<h3 id="detailTitle">Szczegóły</h3>
+<label>Oznaczenie / brygada
+<select id="ann">
+<option value="">brak</option>
+<option>I</option><option>II</option><option>III</option><option>IV</option><option>V</option><option>VI</option><option>VII</option><option>VIII</option><option>IX</option><option>X</option><option>XI</option><option>XII</option><option>XIII</option><option>XIV</option><option>XV</option>
+<option>S16</option><option>S17</option><option>S18</option><option>S19</option><option>S20</option><option>S21</option><option>S22</option><option>S23</option><option>S24</option><option>S25</option><option>S26</option>
+</select></label>
+<label>Specjalne
+<select id="special"><option value="">brak</option><option>UW</option><option>BHP</option><option>BO</option></select></label>
+<div class="dialogBtns"><button value="cancel" class="secondary">Anuluj</button><button id="saveDetail" value="default">Zapisz</button></div>
+</form></dialog>
+</main><script src="app.js?v=10"></script></body></html>
